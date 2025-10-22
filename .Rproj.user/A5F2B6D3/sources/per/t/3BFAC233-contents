@@ -1,0 +1,157 @@
+#===============================================================================
+# Ratification Thresholds Master. 
+# Project: Ratification Thresholds
+# Chris Arnold, Cardiff University,  May 2019 
+#===============================================================================
+
+# 0 Housekeeping ===============================================================
+setwd("~/Dropbox/ratification_thresholds/code/")
+
+# Libraries
+library(survival)
+library(foreign)
+library(readstata13)
+library(ranger)
+library(ggplot2)
+library(dplyr)
+library(ggfortify)
+library(MatchIt)
+library(clarify)
+library(cem)
+library(stargazer)
+library(fastDummies)
+library(VennDiagram)
+
+# install.packages("BiocManager")
+# BiocManager::install("limma")
+library(limma)
+
+# helper files
+source("helpers/helpers_data.r")
+source("helpers/helpers_matching.r")
+source("helpers/helpers_causal_effect.r")
+
+
+# colours
+# Viridis Colours
+library(viridisLite)
+library(viridis)
+
+# Predefined Cardiff colours
+# primary
+cardiffred <- rgb(211,55,74, maxColorValue = 255)
+cardiffblack <- rgb(35,21,32, maxColorValue = 255)
+cardiffgrey <- rgb(47,68,78, maxColorValue = 255)
+cardiffgold <- rgb(189,158,94, maxColorValue = 255)
+# secondary 
+cardiffblue <- rgb(21,44,81, maxColorValue = 255)
+cardiffblue2 <- rgb(21,44,81, alpha = 140, maxColorValue = 255)
+cardiffpurple1 <- rgb(29,15,51, maxColorValue = 255)
+cardiffpurple2 <- rgb(60,44,89, maxColorValue = 255)
+# Transparent colours
+library(grDevices)
+cardiffblue.t <- adjustcolor( cardiffblue, alpha.f = 0.5)
+cardiffred.t <- adjustcolor( cardiffred, alpha.f = 0.5)
+cardiffgold.t <- adjustcolor( cardiffgold, alpha.f = 0.5)
+
+
+
+# Dependencies
+# For full dependencies see bottom of the script
+# R version 4.3.0 (2023-04-21)
+# Platform: aarch64-apple-darwin20 (64-bit)
+# Running under: macOS Ventura 13.3.1
+
+# Flag to develop the code 
+# TODO Later in the project remove when you move towards replication code
+# runall <- TRUE
+runall <- FALSE
+
+
+# 1 Read Data ==================================================================
+dat <- read.dta13("../data/mtdsg_18april2019.dta")
+
+
+
+source("data_management.r")
+# Output: 
+#   dat.treaty aggregates all information up to the treaty level.
+#   dat.rat is the subset from the overall data that only uses explicit ratification
+#   dat.df.rat.misc.all.treaties uses all actions similar to ratification
+
+
+
+# 2 Describing MPRs ============================================================
+# Generates descriptive figures and tables of the MPRs
+if (runall) source("descriptive_data_analysis.r")
+
+
+# -- 3 Explaining Existence and Design of MPR ----------------------------------
+# TODO this can all potentially go into the appendix
+## 3.1 When do we see MPRs? --
+if (runall) source("analyse_any_threshold.r")
+
+## 3.2 What explains the "demandingness" of a threshold?
+### 3.2.1 How is the threshold combination?
+if (runall) source('analyse_threshold_combination.r')
+
+### 3.2.2 How many countries?
+if (runall) source('analyse_how_high.r')
+
+### 3.2.3 When do we see custom-made or boilerplate MPRs?
+if (runall) source('analyse_boilerplate.r')
+
+
+# -- 4 MPRs influence on participating in multilateral agreements --------------
+## How do MPRs influence the entry into force of agreements?
+if (runall) source('analyse_entry_into_force.r')
+# WE ARE HERE
+
+## How do MPRs condition ratification after the threshold is met?
+# Matching analysis
+# if (runall) {}
+  
+source('code/ce_of_mpr.r')
+
+
+
+
+
+
+
+
+# sessionInfo()
+# R version 4.3.0 (2023-04-21)
+# Platform: aarch64-apple-darwin20 (64-bit)
+# Running under: macOS Ventura 13.3.1
+# 
+# Matrix products: default
+# BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+# LAPACK: /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
+# 
+# locale:
+#   [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+# 
+# time zone: Europe/London
+# tzcode source: internal
+# 
+# attached base packages:
+#   [1] grid      tcltk     stats     graphics  grDevices utils     datasets  methods   base     
+# 
+# other attached packages:
+#   [1] viridis_0.6.3       viridisLite_0.4.2   limma_3.56.1        VennDiagram_1.7.3   futile.logger_1.4.3 fastDummies_1.6.3  
+# [7] stargazer_5.2.3     cem_1.1.31          lattice_0.21-8      Zelig_5.0-12        MatchIt_4.5.3       ggfortify_0.4.16   
+# [13] dplyr_1.1.2         ggplot2_3.4.2       ranger_0.15.1       readstata13_0.10.1  foreign_0.8-84      survival_3.5-5     
+# 
+# loaded via a namespace (and not attached):
+#   [1] gtable_0.3.3         vctrs_0.6.2          tools_4.3.0          generics_0.1.3       stats4_4.3.0         sandwich_3.0-2      
+# [7] tibble_3.2.1         fansi_1.0.4          pkgconfig_2.0.3      Matrix_1.5-4.1       lifecycle_1.0.3      compiler_4.3.0      
+# [13] stringr_1.5.0        maxLik_1.5-2         MatrixModels_0.5-1   mcmc_0.9-7           combinat_0.0-8       munsell_0.5.0       
+# [19] mitools_2.4          carData_3.0-5        survey_4.2-1         SparseM_1.81         quantreg_5.95        Formula_1.2-5       
+# [25] Amelia_1.8.1         pillar_1.9.0         car_3.1-2            tidyr_1.3.0          MASS_7.3-60          abind_1.4-5         
+# [31] nlme_3.1-162         tidyselect_1.2.0     digest_0.6.31        stringi_1.7.12       AER_1.2-10           purrr_1.0.1         
+# [37] geepack_1.3.9        splines_4.3.0        miscTools_0.6-28     colorspace_2.1-0     cli_3.6.1            magrittr_2.0.3      
+# [43] randomForest_4.7-1.1 utf8_1.2.3           broom_1.0.4          withr_2.5.0          scales_1.2.1         backports_1.4.1     
+# [49] lambda.r_1.2.4       gridExtra_2.3        zoo_1.8-12           VGAM_1.1-8           coda_0.19-4          lmtest_0.9-40       
+# [55] futile.options_1.0.1 rlang_1.1.1          MCMCpack_1.6-3       Rcpp_1.0.10          glue_1.6.2           DBI_1.1.3           
+# [61] BiocManager_1.30.20  formatR_1.14         rstudioapi_0.14      jsonlite_1.8.4       R6_2.5.1             plyr_1.8.8    

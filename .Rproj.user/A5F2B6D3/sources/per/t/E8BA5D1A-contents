@@ -1,0 +1,509 @@
+#===============================================================================
+# Functions useful for the Estimation of the CE
+# Project: MPR
+# Chris Arnold, Cardiff University, August 2020
+#===============================================================================
+
+# -- Functions for the Estimation of the Ce on the basis of the 
+# Kaplan Meier estimate (Fredriksson and Johansson 2008) ----------------------
+
+# 
+# calculate the CE at one point in time
+# In production it gets the first day of each week.
+# this is the new continuous version
+# ce_t <- 1200
+calculate.ce <- function(surv_model, ce_t){
+    # Save time
+    # surv_model$ce_t <- ce_t
+    # All until time is reached
+    surv_model$until_t <- surv_model$time_after_mpr < ce_t
+    # cat(table(surv_model$until_t)
+    # Identify CEs
+    # select the treatment group and then select the share of those who have
+    # ratified by choosing the min of ratification shares in the TS of ratifications
+    treatment.selector <- (surv_model$until_t & surv_model$treatment == 1)
+    # makes sure there is at least one element in the condition
+    if (length(unique(treatment.selector)) > 1){
+        # Selects how many have ratified until this point in time
+        surv_t_treat <- min(surv_model$surv[treatment.selector])
+    } else {
+        surv_t_treat <- 1
+    }
+    # same for the control group
+    # Note: The contributions are different per case here, since they are 
+    #       weighed in the control group: This is because there may be several 
+    #       exact matches from the control group.
+    control.selector <- (surv_model$until_t & surv_model$treatment == 0)
+    if (length(unique(control.selector)) > 1){
+        surv_t_contr <- min(surv_model$surv[control.selector])
+    } else {
+        surv_t_contr <- 1
+    }
+    # CE is Treatment - Control
+    # basically: how many have ratified? and how many still have to? (double check)
+    # cat(paste('treat:',surv_model$surv_t_treat, '\n'))
+    # cat(paste('contr:',surv_model$surv_t_contr, '\n'))
+    surv_t_ce <- surv_t_treat - surv_t_contr
+    # out
+    return(surv_t_ce)
+}
+
+# 
+# 
+# 
+# 
+
+
+
+
+
+
+
+# for debugging
+# ------------------
+# dat.for.matching <- dat.df.rat.misc.all.treaties
+# treaty.code <- treaty_codes[100]
+# dat.df.rat.misc.all.treaties$shallow
+# dat.for.matching <- dat.df.rat.misc.all.treaties
+# treaty.code <-  treaty_codes[1]
+
+
+# ------------------
+# Function that take general data for misc events similar to ratification
+# Adaption: matching also on treaty_action_category
+# prepares data for matching, matches, and 
+# estimates the CE al la Fredricksson and Johansson 2008
+estimate.ce.misc <- function(dat.for.matching, treaty.code, 
+                                  self.calc.entry.force.date = TRUE,
+                                  timespan.years = 10,
+                                  placebo.time.manipulator.days = 0,
+                                  placebo.time.sample.selector = FALSE,
+                                  placebo.case.manipulator = FALSE){
+    # Check whether you want to run the placebo
+    if (placebo.time.manipulator.days == 0){
+      dat.temp <- make_data_for_matching(dat.for.matching, treaty.code)  
+    }
+    if (placebo.time.manipulator.days != 0){
+      if (placebo.time.sample.selector == FALSE){
+        dat.temp <- make_data_for_matching_time_placebo(
+          dat.for.matching, treaty.code, placebo.time.manipulator.days
+        )    
+      }
+      if (placebo.time.sample.selector == TRUE){
+        dat.temp <- make_data_for_matching_time_placebo_select(
+          dat.for.matching, treaty.code, placebo.time.manipulator.days
+        )    
+      }
+    }
+    # check whether the make_data_for_matching() returns NA. If so do not exe
+    # if dimensions of data are not NULL, do:
+    if (!is.null(dim(dat.temp))){
+        # TODO add maybe also chapters as robustness checks
+        # catch if matching works
+        # MatchIt package
+        exact.match <- NULL
+        try(exact.match <- matchit(formula = treat ~ country_iso3c + 
+                                     # public_good + common_good + post_cold_war +
+                                     public_or_common_good + post_cold_war +
+                                       treaty_action_category,
+                                   data = dat.temp, method = 'exact'), TRUE)
+        if(!is.null(exact.match)){
+            exact.match.data <- match.data(exact.match)
+            # this is the adaption for the placebo treatment shuffle
+            if (placebo.case.manipulator == TRUE){
+              exact.match.data$treat <- sample(exact.match.data$treat, replace = FALSE)  
+            }
+            # Treatment object
+            surv_model <- survfit(Surv(rat_failure_time, 
+                                       rat_misc_dummy) ~ treat,
+                                  data = exact.match.data,
+                                  conf.type = "log",
+                                  weights = exact.match.data$weights,
+                                  # conf.type="plain",
+                                  type = "kaplan-meier")
+            # Calculate the time after the MPR:
+            # Define the MPR time
+            mpr.time <- unique(exact.match.data$rat_failure_time_at_threshold_tg)
+            # Calculate time after the MPR (for comparisons later on)
+            surv_model$time_after_mpr <- surv_model$time - mpr.time
+            # identify the control and treatment strata
+            surv_model$treatment <- c(rep(0, surv_model$strata[1]),
+                                      rep(1, surv_model$strata[2]))
+            # Estimate the CE 
+            # max right-censored observation time of the treatment group in days
+            max.time <- max(
+                exact.match.data$rat_failure_time[exact.match.data$treat == 1])
+            # take min in days
+            possible.obs.span <- min(round(timespan.years*365.25), max.time)
+            # general time ruler in weeks
+            # time.ruler <- c(0,seq(1,possible.obs.span, 7)) 
+            # better: general time ruler in days
+            time.ruler <- seq(0,possible.obs.span, 1) # this is in days
+            ce.over.time <- rep(NA, length(time.ruler))
+            for (i in seq(1, length(time.ruler))){
+                ce.over.time[i] <- calculate.ce(surv_model, time.ruler[i])  
+            }
+        } else {ce.over.time <- NA}
+    } else {ce.over.time <- NA}
+    return(ce.over.time)
+}
+
+
+
+
+
+
+
+
+
+
+
+# The same as above, but has a flexible input for the matching formula
+estimate.ce.misc.robustness <- function(dat.for.matching, treaty.code, 
+                                                  formula,
+                                       self.calc.entry.force.date = TRUE,
+                                       timespan.years = 6){
+  dat.temp <- make_data_for_matching(dat.for.matching, treaty.code)
+  # check whether the make_data_for_matching() returns NA. If so do not exe
+  # if dimensions of data are not NULL, do:
+  if (!is.null(dim(dat.temp))){
+    # TODO add maybe also chapters as robustness checks
+    # catch if matching works
+    # MatchIt package
+    exact.match <- NULL
+    # THIS IS WHERE IT IS DIFFERENT
+    # Reads in the formula from 
+    try(exact.match <- eval(parse(text = formula)), TRUE)
+    if(!is.null(exact.match)){
+      exact.match.data <- match.data(exact.match)
+      
+      # Treatment object
+      surv_model <- survfit(Surv(rat_failure_time, 
+                                 rat_misc_dummy) ~ treat,
+                            data = exact.match.data,
+                            conf.type = "log",
+                            weights = exact.match.data$weights,
+                            # conf.type="plain",
+                            type = "kaplan-meier")
+      # Calculate the time after the MPR:
+      # Define the MPR time
+      mpr.time <- unique(exact.match.data$rat_failure_time_at_threshold_tg)
+      # Calculate time after the MPR (for comparisons later on)
+      surv_model$time_after_mpr <- surv_model$time - mpr.time
+      # identify the control and treatment strata
+      surv_model$treatment <- c(rep(0, surv_model$strata[1]),
+                                rep(1, surv_model$strata[2]))
+      # Estimate the CE 
+      # max right-censored observation time of the treatment group in days
+      max.time <- max(
+        exact.match.data$rat_failure_time[exact.match.data$treat == 1])
+      # take min in days
+      possible.obs.span <- min(round(timespan.years*365.25), max.time)
+      # general time ruler in weeks
+      # time.ruler <- c(0,seq(1,possible.obs.span, 7)) 
+      # better: general time ruler in days
+      time.ruler <- seq(0,possible.obs.span, 1) # this is in days
+      ce.over.time <- rep(NA, length(time.ruler))
+      for (i in seq(1, length(time.ruler))){
+        ce.over.time[i] <- calculate.ce(surv_model, time.ruler[i])  
+      }
+    } else {ce.over.time <- NA}
+  } else {ce.over.time <- NA}
+  return(ce.over.time)
+}
+
+
+
+
+
+
+
+
+
+
+estimate.ce.difference.misc <- function(dat.for.matching, treaty.code, 
+                                       self.calc.entry.force.date = TRUE,
+                                       timespan.years = 6){
+  # check whether the make_data_for_matching() returns NA. If so do not exe
+  dat.temp <- make_data_for_matching(dat.for.matching, treaty.code)  
+  # if dimensions of data are not NULL, do:
+  if (!is.null(dim(dat.temp))){
+    # catch if matching works
+    # MatchIt package
+    exact.match <- NULL
+    try(exact.match <- matchit(formula = treat ~ country_iso3c + 
+                                 # public_good + common_good + post_cold_war +
+                                 public_or_common_good + post_cold_war +
+                                 treaty_action_category,
+                               data = dat.temp, method = 'exact'), TRUE)
+    if(!is.null(exact.match)){
+      exact.match.data <- match.data(exact.match)
+      # Add uncertainty regarding the difference of the curves 
+      surv_diff <- survdiff(Surv(rat_failure_time, 
+                                 rat_misc_dummy) ~ treat,
+                            data = exact.match.data)
+    } else {surv_diff <- NA}
+  } else {surv_diff <- NA}
+  return(surv_diff)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Function that take general data for only ratification cases
+# prepares data for matching, matches, and
+# estimates the CE al la Fredricksson and Johansson 2008
+estimate.ce.each.week <- function(dat.for.matching, treaty.code,
+                                  self.calc.entry.force.date = TRUE,
+                                  timespan.years = 6){
+  dat.temp <- make_data_for_matching(dat.for.matching, treaty.code)
+  # check whether the make_data_for_matching() returns NA. If so do not exe
+  # if dimensions of data are not NULL, do:
+  if (!is.null(dim(dat.temp))){
+    # TODO add maybe also chapters as robustness checks
+    # catch if matching works
+    # MatchIt package
+    exact.match <- NULL
+    # CPG Fork
+    # try(exact.match <- matchit(formula = treat ~ country_iso3c +
+    #                                public_good + post_cold_war,
+    #                            data = dat.temp, method = 'exact'), TRUE)
+    try(exact.match <- matchit(formula = treat ~ country_iso3c +
+                                 public_good + post_cold_war,
+                               data = dat.temp, method = 'exact'), TRUE)
+    if(!is.null(exact.match)){
+      exact.match.data <- match.data(exact.match)
+      
+      # Treatment object
+      surv_model <- survfit(Surv(rat_failure_time,
+                                 rat_dummy) ~ treat,
+                            data = exact.match.data,
+                            conf.type = "log",
+                            weights = exact.match.data$weights,
+                            # conf.type="plain",
+                            type = "kaplan-meier")
+      # Calculate the time after the MPR:
+      # this approach with simple min() works because we pre-select only those
+      # ratification spells that are  active after the MPR
+      # in make_data_for_matching()
+      surv_model$time_after_mpr <- surv_model$time - min(surv_model$time)
+      # identify the control and treatment strata
+      surv_model$treatment <- c(rep(0, surv_model$strata[1]),
+                                rep(1, surv_model$strata[2]))
+      # Estimate the CE
+      # max right-censored observation time of the treatment group in days
+      max.time <- max(
+        exact.match.data$rat_failure_time[exact.match.data$treat == 0])
+      # take min in days
+      possible.obs.span <- min(round(timespan.years*365.25), max.time)
+      # general time ruler in weeks
+      time.ruler <- seq(1,possible.obs.span, 7)
+      ce.over.time <- rep(NA, length(time.ruler))
+      for (i in seq(1, length(time.ruler))){
+        ce.over.time[i] <- calculate.ce(surv_model, time.ruler[i])
+      }
+    } else {ce.over.time <- NA}
+  } else {ce.over.time <- NA}
+  return(ce.over.time)
+}
+
+
+
+
+
+
+
+
+# 
+# # Calculates 'easy' non parametric causal effect on the
+# # note: old way of doing it...
+# add_ce_to_surv_model <- function(surv_model, ce_t1, ce_t2, ce_t3){
+#     # Normalise time
+#     surv_model$time_after_mpr <- surv_model$time - min(surv_model$time)
+#     # Establish a treatment indicator 
+#     surv_model$treatment <- c(rep(0, surv_model$strata[1]),rep(1, surv_model$strata[2]))
+#     # Save time
+#     surv_model$ce_t1 <- ce_t1
+#     surv_model$ce_t2 <- ce_t2
+#     surv_model$ce_t3 <- ce_t3
+#     # All until time is reached
+#     surv_model$until_t1 <- surv_model$time_after_mpr < ce_t1
+#     surv_model$until_t2 <- surv_model$time_after_mpr <  ce_t2
+#     surv_model$until_t3 <- surv_model$time_after_mpr <  ce_t3
+#     # Identify CEs
+#     surv_model$surv_t1_contr <- min(surv_model$surv[(surv_model$until_t1 & surv_model$treatment == 0)])
+#     surv_model$surv_t1_treat <- min(surv_model$surv[(surv_model$until_t1 & surv_model$treatment == 1)])
+#     surv_model$surv_t1_ce <- surv_model$surv_t1_treat - surv_model$surv_t1_contr
+#     
+#     surv_model$surv_t2_contr <- min(surv_model$surv[(surv_model$until_t2 & surv_model$treatment == 0)])
+#     surv_model$surv_t2_treat <- min(surv_model$surv[(surv_model$until_t2 & surv_model$treatment == 1)])
+#     surv_model$surv_t2_ce <- surv_model$surv_t2_treat - surv_model$surv_t2_contr
+#     
+#     surv_model$surv_t3_contr <- min(surv_model$surv[(surv_model$until_t3 & surv_model$treatment == 0)])
+#     surv_model$surv_t3_treat <- min(surv_model$surv[(surv_model$until_t3 & surv_model$treatment == 1)])
+#     surv_model$surv_t3_ce <- surv_model$surv_t3_treat - surv_model$surv_t3_contr
+#     return(surv_model) 
+# }
+# 
+# # Print the result for three default points in time in a table
+# ce_from_surv_model <- function(surv_model){
+#     results_ce <- data.frame(round(surv_model$surv_t1_ce, 4), 
+#                              round(surv_model$surv_t2_ce, 4),
+#                              round(surv_model$surv_t3_ce, 4))
+#     # names(results_ce) <- c(paste('TE.at',round(surv_model$ce_t1, 0),'days(t1)', sep='.'), 
+#     #                        paste('TE.at',round(surv_model$ce_t2, 0),'days(t2)', sep='.'),
+#     #                        paste('TE.at',round(surv_model$ce_t3, 0),'days(t3)', sep='.'))
+#     names(results_ce) <- c('t1', 't2','t3')
+#     return(results_ce)
+# }
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# # Function that take general data 
+# # prepares data for matching, matches, and 
+# # estimates the CE al la Fredricksson and Johansson 2008
+# # returns Ce at three points in time
+# # TODO pipe up the self.calc.entry.force.date
+# estimate.ce.at.3t <- function(dat.for.matching, treaty.code, 
+#                               self.calc.entry.force.date = TRUE,
+#                               ce_t1 = 1/2*365.25, ce_t2 = 3*365.25, 
+#                               ce_t3 = 6*365.25){
+#     dat.temp <- make_data_for_matching(dat.for.matching, treaty.code, 
+#                                        self.calc.entry.force.date)
+#     # MatchIt package
+#     exact.match <- matchit(formula = treat ~ country_iso3c + public_good +
+#                                post_cold_war,
+#                            data = dat.temp, method = 'exact')
+#     exact.match.data <- match.data(exact.match)
+#     
+#     # Treatment object
+#     surv_model <- survfit(Surv(rat_failure_time, 
+#                                rat_dummy) ~ treat,
+#                           data = exact.match.data,
+#                           conf.type = "log",
+#                           weights = exact.match.data$weights,
+#                           # conf.type="plain",
+#                           type = "kaplan-meier")
+#     # Estimate the CE 
+#     # Add the extra data 
+#     surv_model <- add_ce_to_surv_model(surv_model, ce_t1, ce_t2 , ce_t3)  
+#     # Print the result table
+#     resulting.ce.at.3t <- ce_from_surv_model(surv_model)
+#     return(resulting.ce.at.3t)
+# }
+# 
+# 
+# plot_ce_from_surv_model <- function(surv_model, treaty.name){
+#     # Define colors for printing the treatment and control groups
+#     surv_model$treatment_cols <- surv_model$treatment
+#     surv_model$treatment_cols[surv_model$treatment==1] <- cardiffblue
+#     surv_model$treatment_cols[surv_model$treatment==0] <- cardiffblue2
+#     # plot
+#     plot(surv_model$time_after_mpr, surv_model$surv, xlim = c(0, 8*365.5), ylim = c(0,1),
+#          pch = 16, col = surv_model$treatment_cols,  las = 1, type = 'n',
+#          ylab = 'Ratification Rate', xlab='Time after MPR (Days)',
+#          main = strwrap(treaty.name))
+#     abline(v = surv_model$ce_t1, lty=2)
+#     text(surv_model$ce_t1,0, "t1", pos = 4)
+#     text(surv_model$ce_t1,
+#          mean(c(surv_model$surv_t1_treat, surv_model$surv_t1_contr)), 
+#          paste("CE at t1 is ",round(surv_model$surv_t1_ce, 2)), 
+#          pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t1, surv_model$ce_t1), 
+#           c(surv_model$surv_t1_treat, surv_model$surv_t1_contr), 
+#           col = cardiffred, lwd = 3)
+#     abline(v = surv_model$ce_t2, lty=2)
+#     text(surv_model$ce_t2,0, "t2", pos = 4)
+#     text(surv_model$ce_t2,
+#          mean(c(surv_model$surv_t2_treat, surv_model$surv_t2_contr)), 
+#          paste("CE at t2 is ",round(surv_model$surv_t2_ce, 2))
+#          , pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t2, surv_model$ce_t2), 
+#           c(surv_model$surv_t2_treat, surv_model$surv_t2_contr), 
+#           col = cardiffred, lwd = 3)
+#     abline(v = surv_model$ce_t3, lty=2)
+#     text(surv_model$ce_t3,0, "t3", pos = 4)
+#     text(surv_model$ce_t3,
+#          mean(c(surv_model$surv_t3_treat, surv_model$surv_t3_contr)), 
+#          paste("CE at t3 is ", round(surv_model$surv_t3_ce, 2)), 
+#          pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t3, surv_model$ce_t3), 
+#           c(surv_model$surv_t3_treat, surv_model$surv_t3_contr), 
+#           col = cardiffred, lwd = 3)
+#     # The way you plot the step function shifts the X positions to the right
+#     lines(c(surv_model$time_after_mpr[surv_model$treatment == 1], 
+#             max(surv_model$time_after_mpr[surv_model$treatment == 1]), 10000), 
+#           c(1, surv_model$surv[surv_model$treatment == 1], 0), 
+#           type = 'S', lty = 1, col = cardiffblue, lwd = 2)
+#     lines(c(surv_model$time_after_mpr[surv_model$treatment == 0], 
+#             max(surv_model$time_after_mpr[surv_model$treatment == 0])), 
+#           c(1, surv_model$surv[surv_model$treatment == 0]), 
+#           type = 'S', lty = 3, col = cardiffblue, lwd = 2)
+#     legend('topright', legend = c('Treatment', 'Control'), 
+#            lty = c(1, 3), lwd = 2, cex = .8)
+# }
+# 
+# 
+# 
+
+
+
+
+
+# 
+# Old
+# 
+# plot_ce_from_surv_model <- function(surv_model){
+#     # Define colors for printing the treatment and control groups
+#     surv_model$treatment_cols <- surv_model$treatment
+#     surv_model$treatment_cols[surv_model$treatment==1] <- cardiffblue
+#     surv_model$treatment_cols[surv_model$treatment==0] <- cardiffblue2
+#     # plot
+#     plot(surv_model$time_after_mpr, surv_model$surv, xlim = c(0, 2500), ylim = c(0,1),
+#          pch = 16, col = surv_model$treatment_cols,  las = 1,
+#          ylab = 'Ratification Rate', xlab='Time after MPR (Days)')
+#     
+#     abline(v = surv_model$ce_t1, lty=2)
+#     text(surv_model$ce_t1,0, "t1", pos = 4)
+#     text(surv_model$ce_t1,
+#          mean(c(surv_model$surv_t1_treat, surv_model$surv_t1_contr)), 
+#          paste("CE at t1 is ",round(surv_model$surv_t1_ce, 2)), 
+#          pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t1, surv_model$ce_t1), 
+#           c(surv_model$surv_t1_treat, surv_model$surv_t1_contr), 
+#           col = cardiffred, lwd = 3)
+#     abline(v = surv_model$ce_t2, lty=2)
+#     text(surv_model$ce_t2,0, "t2", pos = 4)
+#     text(surv_model$ce_t2,
+#          mean(c(surv_model$surv_t2_treat, surv_model$surv_t2_contr)), 
+#          paste("CE at t2 is ",round(surv_model$surv_t2_ce, 2))
+#          , pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t2, surv_model$ce_t2), 
+#           c(surv_model$surv_t2_treat, surv_model$surv_t2_contr), 
+#           col = cardiffred, lwd = 3)
+#     abline(v = surv_model$ce_t3, lty=2)
+#     text(surv_model$ce_t3,0, "t3", pos = 4)
+#     text(surv_model$ce_t3,
+#          mean(c(surv_model$surv_t3_treat, surv_model$surv_t3_contr)), 
+#          paste("CE at t3 is ", round(surv_model$surv_t3_ce, 2)), 
+#          pos = 4, col = cardiffred)
+#     lines(c(surv_model$ce_t3, surv_model$ce_t3), 
+#           c(surv_model$surv_t3_treat, surv_model$surv_t3_contr), 
+#           col = cardiffred, lwd = 3)
+# }

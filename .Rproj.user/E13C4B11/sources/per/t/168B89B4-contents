@@ -1,0 +1,859 @@
+#===============================================================================
+# Causal Effect of MPR
+# Project: MPR
+# Chris Arnold, Cardiff University, April 2022
+#===============================================================================
+
+load(file = "data_wo_doubles.RData")
+
+# For experimenting
+# This is the data that is coming in from the data_management.r
+# dat.df.rat.misc.all.treaties.archive <- dat.df.rat.misc.all.treaties
+# dat.df.rat.misc.all.treaties <- dat.df.rat.misc.all.treaties.archive
+
+# Get rid of some instances with weird data annotations due to taking over trwaties
+dat.df.rat.misc.all.treaties <- subset(dat.df.rat.misc.all.treaties, dat.df.rat.misc.all.treaties$rat_failure_time > 0 )
+# Select actions
+dat.df.rat.misc.all.treaties <- subset(dat.df.rat.misc.all.treaties, subset = (
+  dat.df.rat.misc.all.treaties$treaty_action_category == 1 |
+  dat.df.rat.misc.all.treaties$treaty_action_category == 2 | #
+  # # dat.df.rat.misc.all.treaties$treaty_action_category ==3 )) # does not work: CE are empty because of missing controls
+  dat.df.rat.misc.all.treaties$treaty_action_category ==4))
+  # dat.df.rat.misc.all.treaties$treaty_action_category ==6)) # leave out because not enough observations
+
+
+dat.df.rat.misc.all.treaties$public_or_common_good <- 0 
+dat.df.rat.misc.all.treaties$public_or_common_good[dat.df.rat.misc.all.treaties$public_good == 1] <- 1
+dat.df.rat.misc.all.treaties$public_or_common_good[dat.df.rat.misc.all.treaties$common_good == 1] <- 1
+
+# What to select?
+# 1 Acceptance: For early comers. Just like ratification, but without the domestic legal overhead 
+# About 2/3 before the MPR, 1/3 after  the MPR
+
+# 2 Accession: Should be in for those late. 
+# In 1/8 of the cases accession is before the MPR and 7/8 after MPR
+
+# 3 Application: 
+# All cases after the MPR
+
+# 4 ratification 
+# about 1/4 before MPR
+
+# 6 succession
+# only 24 out of 2001 cases before MPR
+
+
+# This is how it works: To identify the matched control units, we 
+# * calculate all times t and s from all countries in all treaties. 
+# * Out of this set, we then select those cases where t^0 > s^1 & t^0 < s^0 . 
+# * In each treaty, for each case consider all potential other matches on covariates. 
+# * If there are multiple possible matches, we use the weights.
+
+
+# Disselecting cases 
+
+# All transport cases
+# dat.df.rat.misc.all.treaties.archive <- dat.df.rat.misc.all.treaties
+# dat.df.rat.misc.all.treaties <- dat.df.rat.misc.all.treaties.archive
+# dat.df.rat.misc.all.treaties <- subset(dat.df.rat.misc.all.treaties,
+#                                        dat.df.rat.misc.all.treaties$chapter_title != "Transport and Communications")
+
+# Disselecting the mini agreements on different auto parts
+# mask <- !grepl("XI-B-16-", dat.df.rat.misc.all.treaties$treaty_code)
+# # subset throwing them out
+# dat.df.rat.misc.all.treaties <- subset(dat.df.rat.misc.all.treaties, mask)
+
+
+# Creating some necessary variables
+# Public Good
+treaty_codes <- unique(dat.df.rat.misc.all.treaties$treaty_code)
+dat.temp <- aggregate(dat.df.rat.misc.all.treaties$public_good, 
+                      by = list(dat.df.rat.misc.all.treaties$treaty_code), unique)
+
+# table(dat.tl$Group.1 == treaty_codes)
+public_good <- dat.temp$x
+
+# Common Good
+dat.temp <- aggregate(dat.df.rat.misc.all.treaties$common_good, 
+                      by = list(dat.df.rat.misc.all.treaties$treaty_code), unique)
+common_good <- dat.temp$x
+
+
+# 1 With all data that has ratification ----------------------------------------
+
+# Calculate CE with loop over all treaties -------
+ce.all.treaties.6y.l <- vector(mode = 'list', length = length(treaty_codes))
+na.counter <- 0
+# mask for selecting those with a CE only
+for (i in seq(1,length(treaty_codes))) {
+  # cat(i)
+  if (i%%10 == 0) cat(i)
+  one.ce <- estimate.ce.each.week.misc(dat.df.rat.misc.all.treaties, treaty_codes[i],
+                                  self.calc.entry.force.date = FALSE,
+                                  timespan.years = 10)
+  ce.all.treaties.6y.l[[i]] <- one.ce
+  # count the cases where it was not possible to calculate a CE because 
+  # * matched data was not possible to construct since the treaty was not in force and the MPR was not reached.
+  # * there were not enough control groups
+  # both of the exceptions are defined in make_data_for_matching()
+  try (if (is.na(ce.all.treaties.6y.l[[i]])) {
+    na.counter <- na.counter + 1
+  })
+}
+
+na.counter
+cat(paste('overall we analyse',
+          length(ce.all.treaties.6y.l) - na.counter, 
+          'treaties with the estimator'))
+
+
+# # 1.1 plot results: All treaties -----------
+
+
+cardiffblue.t <- adjustcolor( cardiffblue, alpha.f = 0.3) 
+pdf("figures/ce_mpr_all.pdf", width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR (Kaplan Meier Difference)', xlab = 'Time after MPR (Weeks)',
+     ylim = c(-1, 1), las =1)
+for (i in seq(1, length(ce.all.treaties.6y.l))){
+    lines(ce.all.treaties.6y.l[[i]], col = cardiffblue.t, lwd = 0.5)
+}
+
+abline(h = 0, lwd = 2, lty = 2, col = 'grey20')
+
+# add the overall average
+# calculate the average treatment effect across all treaties
+mask <- !is.na(ce.all.treaties.6y.l)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+# lines(average.ce, col = cardiffblue, lwd = 3)
+points(average.ce, col = cardiffblue, pch = 16, cex = 0.3)
+dev.off()
+
+cardiffblue.t <- adjustcolor( cardiffblue, alpha.f = 0.5) 
+
+average.ce == max(average.ce)
+
+
+plot(order(average.ce))
+
+average.ce[391]
+
+# # 1.2 plot results: distinguish public good and non pg -----------
+
+# pdf('figures/ce_mpr_all_public_goods_entry_force_num_misc.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+     ylim = c(-1, 1), las =1)
+
+# TODO revert back once Doug has cleared the missings of the public goods var
+# pg.colour <- rep('white', length(ce.all.treaties.6y.l))
+pg.colour <- rep(cardiffblue.t, length(ce.all.treaties.6y.l))
+pg.colour[(public_good + common_good) == 0] <- cardiffblue.t
+pg.colour[(public_good + common_good) == 1] <- cardiffred.t
+
+
+
+for (i in seq(1, length(ce.all.treaties.6y.l))){
+    lines(ce.all.treaties.6y.l[[i]], col = pg.colour[i], lwd = .8)
+}
+abline(h = 0, lwd = 2)
+
+# calculate the average treatment effect across all treaties
+# treatment group
+mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1 | common_good == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+lines(average.ce, col = cardiffred, lwd = 3)
+
+
+mask <-!is.na(ce.all.treaties.6y.l) & (public_good == 0 & common_good == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+lines(average.ce, col = cardiffblue, lwd = 3)
+
+legend('topleft', col = c(cardiffred, cardiffblue), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good'), bty = 'n')
+
+# dev.off()
+
+
+
+# # 1.3 plot only average results: distinguish public good and non pg ------------
+
+# pdf('figures/ce_mpr_pg_means_misc.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+     ylim = c(-0.2, 1), las =1)
+
+abline(h = 0, lwd = 2)
+
+# calculate the average treatment effect across all treaties
+# treatment group
+mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1 | common_good == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+upper.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .75)
+lower.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .25)
+
+
+# plot
+lines(average.ce, col = cardiffred, lwd = 2)
+lines(upper.ce, col = cardiffred, lwd = 1)
+lines(lower.ce, col = cardiffred, lwd = 1)
+
+mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 0 & common_good == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+upper.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .75)
+lower.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .25)
+
+# plot
+lines(average.ce, col = cardiffblue, lwd = 2)
+lines(upper.ce, col = cardiffblue, lwd = 1)
+lines(lower.ce, col = cardiffblue, lwd = 1)
+
+
+legend('topleft', col = c(cardiffred, cardiffblue), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good'), bty = 'n')
+
+# dev.off()
+
+
+
+# 1.4 plot differences between public good and non pg with t.test------------
+# note: this is super ad-hoc and needs to be corrected with something that 
+# takes account of the temporal dependence in the data
+
+
+# calculate the average treatment effect across all treaties
+# treatment group
+# CPG Fork
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1)
+mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1 | common_good == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona.t <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# control group
+mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 0) & (common_good == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona.c <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+
+nr.observations <- dim(dat.ce.all.treaties.6y.wona.t)[2]
+means.contr <- means.treat <- upper.bound <- lower.bound <- diff.in.means <- rep(NA, nr.observations)
+
+for (i in seq(1, nr.observations)){
+  t.test.out <- t.test(dat.ce.all.treaties.6y.wona.t[,i], 
+                       dat.ce.all.treaties.6y.wona.c[,i], 
+                       conf.level = 0.9)
+  means.treat[i] <- t.test.out$estimate[1]
+  means.contr[i] <- t.test.out$estimate[2]
+  diff.in.means[i] <- t.test.out$estimate[1] - t.test.out$estimate[2]
+  lower.bound[i] <- t.test.out$conf.int[1]
+  upper.bound[i] <- t.test.out$conf.int[2]
+}
+
+
+# # This is for the differences
+pdf('figures/ce_mpr_diff.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR (Kaplan Meier Difference)', xlab = 'Time after MPR (Weeks)',
+     # ylim = c(-0.2, max(c(max(means.treat), max(means.contr)))), las =1)
+     ylim = c(-1,1), las =1)
+
+abline(h = 0, lwd = 2, lty = 2, col = 'grey20')
+points(means.treat, col = cardiffgold, pch = 16, cex = 0.3)
+points(means.contr, col = cardiffblue, pch = 16, cex = 0.3)
+
+# points(diff.in.means, col = cardiffgold, pch = 16, cex = 0.3)
+# points(lower.bound, col = cardiffgold, pch = 16, cex = 0.3)
+# points(upper.bound, col = cardiffgold, pch = 16, cex = 0.3)
+
+for (i in seq(1,length(diff.in.means))){
+  colour = cardiffred
+  if(lower.bound[i] < 0){
+    colour = cardiffred.t
+  }
+  points(i,diff.in.means[i], pch = 16, cex = 0.4, col = colour)
+  lines(c(i,i), c(lower.bound[i], upper.bound[i]), col = colour)
+}
+
+
+
+legend('topleft', col = c(cardiffgold, cardiffblue, cardiffred), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good', 'Difference'), bty = 'n')
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -- Development for Boilerplates ----------------------------------------------
+
+
+
+# Creating some necessary variables
+
+
+dat.df.rat.misc.all.treaties$threshold_1_boilerplate <- NA
+dat.df.rat.misc.all.treaties$threshold_1_boilerplate[
+  dat.df.rat.misc.all.treaties$threshold_1_number >= 10] <- TRUE
+dat.df.rat.misc.all.treaties$threshold_1_boilerplate[
+  dat.df.rat.misc.all.treaties$threshold_1_number < 10] <- FALSE
+
+table(dat.df.rat.misc.all.treaties$threshold_1_boilerplate)
+
+
+# boilerplates
+treaty_codes <- unique(dat.df.rat.misc.all.treaties$treaty_code)
+dat.temp <- aggregate(dat.df.rat.misc.all.treaties$threshold_1_boilerplate, 
+                      by = list(dat.df.rat.misc.all.treaties$treaty_code), unique)
+
+
+# table(dat.tl$Group.1 == treaty_codes)
+threshold_1_boilerplate <- dat.temp$x
+
+
+# 1 With all data that has ratification ----------------------------------------
+
+# Calculate CE with loop over all treaties -------
+ce.all.treaties.6y.l <- vector(mode = 'list', length = length(treaty_codes))
+na.counter <- 0
+# mask for selecting those with a CE only
+for (i in seq(1,length(treaty_codes))) {
+  # cat(i)
+  if (i%%10 == 0) cat(i)
+  one.ce <- estimate.ce.each.week.misc.boilerplate(dat.df.rat.misc.all.treaties, treaty_codes[i],
+                                       self.calc.entry.force.date = FALSE,
+                                       timespan.years = 10)
+  ce.all.treaties.6y.l[[i]] <- one.ce
+  # count the cases where it was not possible to calculate a CE because 
+  # * matched data was not possible to construct since the treaty was not in force and the MPR was not reached.
+  # * there were not enough control groups
+  # both of the exceptions are defined in make_data_for_matching()
+  try (if (is.na(ce.all.treaties.6y.l[[i]])) {
+    na.counter <- na.counter + 1
+  })
+}
+
+na.counter
+cat(paste('overall we analyse',
+          length(ce.all.treaties.6y.l) - na.counter, 
+          'treaties with the estimator'))
+
+
+# # 1.1 plot results: All treaties -----------
+
+
+cardiffblue.t <- adjustcolor( cardiffblue, alpha.f = 0.3) 
+# pdf("figures/ce_mpr_all.pdf", width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR (Kaplan Meier Difference)', xlab = 'Time after MPR (Weeks)',
+     ylim = c(-1, 1), las =1)
+for (i in seq(1, length(ce.all.treaties.6y.l))){
+  lines(ce.all.treaties.6y.l[[i]], col = cardiffblue.t, lwd = 0.5)
+}
+
+abline(h = 0, lwd = 2, lty = 2, col = 'grey20')
+
+# add the overall average
+# calculate the average treatment effect across all treaties
+mask <- !is.na(ce.all.treaties.6y.l)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+# lines(average.ce, col = cardiffblue, lwd = 3)
+points(average.ce, col = cardiffblue, pch = 16, cex = 0.3)
+# dev.off()
+
+cardiffblue.t <- adjustcolor( cardiffblue, alpha.f = 0.5) 
+
+
+
+
+# # 1.2 plot results: distinguish public good and non pg -----------
+
+# pdf('figures/ce_mpr_boilerplate.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+     ylim = c(-1, 1), las =1)
+
+# TODO revert back once Doug has cleared the missings of the public goods var
+# pg.colour <- rep('white', length(ce.all.treaties.6y.l))
+pg.colour <- rep(cardiffblue.t, length(ce.all.treaties.6y.l))
+pg.colour[threshold_1_boilerplate == 0] <- cardiffblue.t
+pg.colour[threshold_1_boilerplate == 1] <- cardiffred.t
+
+
+
+for (i in seq(1, length(ce.all.treaties.6y.l))){
+  lines(ce.all.treaties.6y.l[[i]], col = pg.colour[i], lwd = .8)
+}
+abline(h = 0, lwd = 2)
+
+# calculate the average treatment effect across all treaties
+# treatment group
+mask <- !is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+lines(average.ce, col = cardiffred, lwd = 3)
+
+
+mask <-!is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# plot
+lines(average.ce, col = cardiffblue, lwd = 3)
+
+legend('topleft', col = c(cardiffred, cardiffblue), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good'), bty = 'n')
+
+# dev.off()
+
+
+
+# # 1.3 plot only average results: distinguish public good and non pg ------------
+
+# pdf('figures/ce_mpr_pg_means_misc.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+     ylim = c(-0.2, 1), las =1)
+
+abline(h = 0, lwd = 2)
+
+# calculate the average treatment effect across all treaties
+# treatment group
+mask <- !is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+upper.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .75)
+lower.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .25)
+
+
+# plot
+lines(average.ce, col = cardiffred, lwd = 2)
+lines(upper.ce, col = cardiffred, lwd = 1)
+lines(lower.ce, col = cardiffred, lwd = 1)
+
+mask <- !is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+upper.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .75)
+lower.ce <- apply(dat.ce.all.treaties.6y.wona, 2, quantile, .25)
+
+# plot
+lines(average.ce, col = cardiffblue, lwd = 2)
+lines(upper.ce, col = cardiffblue, lwd = 1)
+lines(lower.ce, col = cardiffblue, lwd = 1)
+
+
+legend('topleft', col = c(cardiffred, cardiffblue), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good'), bty = 'n')
+
+# dev.off()
+
+
+
+# 1.4 plot differences between public good and non pg with t.test------------
+# note: this is super ad-hoc and needs to be corrected with something that 
+# takes account of the temporal dependence in the data
+
+
+# calculate the average treatment effect across all treaties
+# treatment group
+# CPG Fork
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1)
+mask <- !is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 1)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona.t <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# control group
+mask <- !is.na(ce.all.treaties.6y.l) & (threshold_1_boilerplate == 0)
+ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+dat.ce.all.treaties.6y.wona.c <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+
+nr.observations <- dim(dat.ce.all.treaties.6y.wona.t)[2]
+means.contr <- means.treat <- upper.bound <- lower.bound <- diff.in.means <- rep(NA, nr.observations)
+
+for (i in seq(1, nr.observations)){
+  t.test.out <- t.test(dat.ce.all.treaties.6y.wona.t[,i], 
+                       dat.ce.all.treaties.6y.wona.c[,i], 
+                       conf.level = 0.9)
+  means.treat[i] <- t.test.out$estimate[1]
+  means.contr[i] <- t.test.out$estimate[2]
+  diff.in.means[i] <- t.test.out$estimate[1] - t.test.out$estimate[2]
+  lower.bound[i] <- t.test.out$conf.int[1]
+  upper.bound[i] <- t.test.out$conf.int[2]
+}
+
+
+# # This is for the differences
+pdf('figures/ce_mpr_diff_boilerplates.pdf', width = 9)
+plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+     ylab = 'CE of MPR (Kaplan Meier Difference)', xlab = 'Time after MPR (Weeks)',
+     # ylim = c(-0.2, max(c(max(means.treat), max(means.contr)))), las =1)
+     ylim = c(-1,1), las =1)
+
+abline(h = 0, lwd = 2, lty = 2, col = 'grey20')
+points(means.treat, col = cardiffgold, pch = 16, cex = 0.3)
+points(means.contr, col = cardiffblue, pch = 16, cex = 0.3)
+
+# points(diff.in.means, col = cardiffgold, pch = 16, cex = 0.3)
+# points(lower.bound, col = cardiffgold, pch = 16, cex = 0.3)
+# points(upper.bound, col = cardiffgold, pch = 16, cex = 0.3)
+
+for (i in seq(1,length(diff.in.means))){
+  colour = cardiffred
+  if(lower.bound[i] < 0){
+    colour = cardiffred.t
+  }
+  points(i,diff.in.means[i], pch = 16, cex = 0.4, col = colour)
+  lines(c(i,i), c(lower.bound[i], upper.bound[i]), col = colour)
+}
+
+
+
+legend('topleft', col = c(cardiffgold, cardiffblue, cardiffred), pch = 16,
+       legend = c('Public or Common Good', 'No Public or Common Good', 'Difference'), bty = 'n')
+
+dev.off()
+
+
+
+
+# -- Appendix ------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+# Some smaller thoughts here and there
+
+# -- Weights 
+# where are the weights coming from? Why are they all the way up to 6..?
+# response: They are weighing the control groups
+# e.g. for treaty code XXVII-2-a"
+treaty.code <- treaty_codes[242]
+# Generate Matched data 
+dat.temp <- make_data_for_matching(dat.for.matching, treaty.code)
+# MatchIt package
+exact.match <- matchit(formula = treat ~ country_iso3c + public_good +
+                         post_cold_war,
+                       data = dat.temp, method = 'exact')
+exact.match.data <- match.data(exact.match)
+
+summary(exact.match.data$weights)
+table(exact.match.data$treat, exact.match.data$subclass)
+table(exact.match.data$weights, exact.match.data$subclass)[,149] # this is the case with 1 in control group
+table(exact.match.data$weights, exact.match.data$subclass)[,51] # this is 2 in control group
+table(exact.match.data$weights, exact.match.data$subclass)[,166] # this is 2 in control group
+table(exact.match.data$weights, exact.match.data$subclass)[,146] # this is 3 in control group
+# special case with 2 in control group, upweighs the control group to as if there were 4
+table(exact.match.data$weights, exact.match.data$subclass)[,1] 
+
+# Treatment object
+surv_model <- survfit(Surv(rat_failure_time, 
+                           rat_dummy) ~ treat,
+                      data = exact.match.data,
+                      conf.type = "log",
+                      weights = exact.match.data$weights,
+                      # conf.type="plain",
+                      type = "kaplan-meier")
+
+
+
+
+
+
+
+# -- Old 3 points figure -------------------------------------------------------
+
+# -- Matching and CE estimation ------------------------------------------------
+treaty_codes <- unique(dat.df.rat.misc.all.treaties$treaty_code)
+
+# all necessary functions to estimate the CE at 3 points in time in 
+# helpers_causal_effect.r
+
+
+# TODO check that all strings are converted to factor
+dat.result <- data.frame('t1'=NA, 't2'=NA, 't3'=NA, 'treaty_code'=NA)
+for(i in seq(1,length(treaty_codes))){
+  # sloppy coding
+  treaty_code <- treaty_codes[i]
+  dat.result[i,] <- cbind(NA, NA,NA, treaty_code)
+  # catching the error where there is no MPR activated. Double check!
+  ce.at.3t <- try(estimate.ce.at.3t(dat.df.rat.misc.all.treaties, treaty_codes[i]), TRUE)
+  if(is.data.frame(ce.at.3t[1])) dat.result[i,] <- cbind(ce.at.3t, treaty_code)
+}
+
+
+
+
+
+
+# -- CE Results ----------------------------------------------------------------
+# Adding treaty level data. 
+dat.treaty.temp <- data.frame(dat.treaty$public_good, dat.treaty$treaty_code)
+names(dat.treaty.temp) <- c('public_good', 'treaty_code')
+dat.merged <- merge(dat.result, dat.treaty.temp, by = 'treaty_code')
+
+
+dat.merged$t1[dat.merged$t1 == 'Inf'] <- NA
+dat.merged$t1[dat.merged$t1 == '-Inf'] <- NA
+dat.merged <- na.omit(dat.merged)
+dat.merged$t1 <- as.numeric(dat.merged$t1)
+t.test.t1 <- t.test(dat.merged$t1 ~ dat.merged$public_good)
+
+
+
+dat.merged$t2[dat.merged$t2 == 'Inf'] <- NA
+dat.merged$t2[dat.merged$t2 == '-Inf'] <- NA
+dat.merged <- na.omit(dat.merged)
+dat.merged$t2 <- as.numeric(dat.merged$t2)
+t.test.t2 <- t.test(dat.merged$t2 ~ dat.merged$public_good)
+
+dat.merged$t3[dat.merged$t3 == 'Inf'] <- NA
+dat.merged$t3[dat.merged$t3 == '-Inf'] <- NA
+dat.merged <- na.omit(dat.merged)
+dat.merged$t3 <- as.numeric(dat.merged$t3)
+t.test.t3 <- t.test(dat.merged$t3 ~ dat.merged$public_good )
+
+
+
+# Nice, the further down the line, the more 'clear' the result and the greater the difference
+pdf('papers/figures/mpr_ce_public_goods_at_3t.pdf', width = 12)
+par(mfrow = (c(1,3)))
+
+boxplot(dat.merged$t1 ~ dat.merged$public_good, ylim = c(-1,0.1), 
+  main = paste("1/2 Year \n t test p-value=", round(t.test.t1$p.value, 2)),
+  xlab = 'Public Good', ylab = 'Causal Effect of MPR on Ratification')
+
+boxplot(dat.merged$t2 ~ dat.merged$public_good, ylim = c(-1,0.1), 
+        main = paste("3 Years \n t test p-value=", round(t.test.t2$p.value, 2)),
+        xlab = 'Public Good', ylab = 'Causal Effect of MPR on Ratification')
+
+boxplot(dat.merged$t3 ~ dat.merged$public_good, ylim = c(-1,0.1),  
+        main = paste("6 Years \n t test p-value=", round(t.test.t3$p.value, 2)),
+        xlab = 'Public Good', ylab = 'Causal Effect of MPR on Ratification')
+
+dev.off()
+
+
+
+# -- OLD ----------------------------------------------------------------- 
+# 
+# 
+# 
+# 
+# # -- 1 Calculate CE on a Monthly Basis: Numerical Thresholds only --------------
+# 
+# # -- Loop over all treaties 
+# 
+# # treaty.code <- treaty_codes[242]
+# 
+# ce.all.treaties.6y.l <- vector(mode = 'list', length = length(treaty_codes))
+# for (i in seq(1,length(treaty_codes))) {
+#   if (i%%10 == 0) cat(i)
+#   one.ce <- estimate.ce.each.week(dat.df.rat.misc.all.treaties, treaty_codes[i])
+#   ce.all.treaties.6y.l[[i]] <- one.ce
+# }
+# 
+# 
+# # -- plot results: All treaties 
+# 
+# pdf('figures/ce_mpr_all.pdf', width = 9)
+# plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+#      ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+#      ylim = c(-1, .2), las =1)
+# for (i in seq(1, length(ce.all.treaties.6y.l))){
+#   if (!is.na(ce.all.treaties.6y.l[[i]])){
+#     lines(ce.all.treaties.6y.l[[i]], col = cardiffblue.t, lwd = 0.8)    
+#   }
+# }
+# 
+# abline(h = 0, lwd = 2)
+# 
+# # add the overall average
+# # calculate the average treatment effect across all treaties
+# mask <- !is.na(ce.all.treaties.6y.l)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffblue, lwd = 3)    
+# dev.off()
+# 
+# 
+# 
+# 
+# 
+# # -- plot results: distinguish public good and non pg 
+# 
+# 
+# pdf('figures/ce_mpr_all_public_goods.pdf', width = 9)
+# plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+#      ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+#      ylim = c(-1, .2), las =1)
+# 
+# pg.colour <- rep('white', length(ce.all.treaties.6y.l))
+# pg.colour[public_good == 0] <- cardiffblue.t
+# pg.colour[public_good == 1] <- cardiffred.t
+# 
+# for (i in seq(1, length(ce.all.treaties.6y.l))){
+#   if (!is.na(ce.all.treaties.6y.l[[i]])){
+#     lines(ce.all.treaties.6y.l[[i]], col = pg.colour[i], lwd = .8)    
+#   }
+# }
+# abline(h = 0, lwd = 2)
+# 
+# # calculate the average treatment effect across all treaties
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffred, lwd = 2)    
+# 
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 0)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffblue, lwd = 2)    
+# 
+# legend('topleft', col = c(cardiffred, cardiffblue), pch = 16, 
+#        legend = c('Public Good', 'No Public Good'), bty = 'n')
+# 
+# dev.off()
+# 
+# 
+# 
+# # 
+# # 2 All with the entry force date: Numerical Thresholds only -------------------
+# # 
+# 
+# # TODO Still add the variable with the mpc_treatment
+# 
+# # Loop over all treaties -------
+# 
+# # treaty.code <- treaty_codes[242]
+# dat.all <- dat.df.rat.misc.all.treaties
+# 
+# treaty.code <- treaty_codes[216]
+# ce.all.treaties.6y.l <- vector(mode = 'list', length = length(treaty_codes))
+# # for (i in seq(210,220)) {
+# for (i in seq(1,length(treaty_codes))) {
+#   # cat(i)
+#   if (i%%10 == 0) cat(i)
+#   one.ce <- estimate.ce.each.week(dat.df.rat.misc.all.treaties, treaty_codes[i],
+#                                   self.calc.entry.force.date = FALSE)
+#   ce.all.treaties.6y.l[[i]] <- one.ce
+# }
+# 
+# 
+# # plot results: All treaties -----------
+# 
+# pdf('figures/ce_mpr_all_entry_force_num.pdf', width = 9)
+# plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+#      ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+#      ylim = c(-1, .2), las =1)
+# for (i in seq(1, length(ce.all.treaties.6y.l))){
+#   if (!is.na(ce.all.treaties.6y.l[[i]])){
+#     lines(ce.all.treaties.6y.l[[i]], col = cardiffblue.t, lwd = 0.8)    
+#   }
+# }
+# 
+# abline(h = 0, lwd = 2)
+# 
+# # add the overall average
+# # calculate the average treatment effect across all treaties
+# mask <- !is.na(ce.all.treaties.6y.l)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffblue, lwd = 3)    
+# dev.off()
+# 
+# 
+# 
+# 
+# 
+# # plot results: distinguish public good and non pg -----------
+# 
+# 
+# pdf('figures/ce_mpr_all_public_goods_entry_force_num.pdf', width = 9)
+# plot(ce.all.treaties.6y.l[[1]], type = 'n', col = cardiffblue.t, bty = 'n',
+#      ylab = 'CE of MPR. Kaplan Meier Difference', xlab = 'Weeks',
+#      ylim = c(-1, .2), las =1)
+# 
+# pg.colour <- rep('white', length(ce.all.treaties.6y.l))
+# pg.colour[public_good == 0] <- cardiffblue.t
+# pg.colour[public_good == 1] <- cardiffred.t
+# 
+# for (i in seq(1, length(ce.all.treaties.6y.l))){
+#   if (!is.na(ce.all.treaties.6y.l[[i]])){
+#     lines(ce.all.treaties.6y.l[[i]], col = pg.colour[i], lwd = .8)    
+#   }
+# }
+# abline(h = 0, lwd = 2)
+# 
+# # calculate the average treatment effect across all treaties
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 1)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffred, lwd = 2)    
+# 
+# mask <- !is.na(ce.all.treaties.6y.l) & (public_good == 0)
+# ce.all.treaties.6y.l.wona <- ce.all.treaties.6y.l[mask]
+# dat.ce.all.treaties.6y.wona <- do.call(rbind.data.frame, ce.all.treaties.6y.l.wona)
+# average.ce <- apply(dat.ce.all.treaties.6y.wona, 2, mean)
+# # plot
+# lines(average.ce, col = cardiffblue, lwd = 2)    
+# 
+# legend('topleft', col = c(cardiffred, cardiffblue), pch = 16, 
+#        legend = c('Public Good', 'No Public Good'), bty = 'n')
+# 
+# dev.off()
+# 
+# 
+# 
+# 
+# 

@@ -1,0 +1,7 @@
+{
+    "installOptions": {
+        "installFromRepository": true,
+        "libraryPath": "/Users/c.arnold.2@bham.ac.uk/Library/R/arm64/4.4/library",
+        "installDependencies": true
+    }
+}

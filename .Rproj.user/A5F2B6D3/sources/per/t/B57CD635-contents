@@ -1,0 +1,349 @@
+# -----------------------------------------------------------------------------
+# What drives when states satisfy the MPR? 
+# 
+# Chris Arnold, Cardiff University
+# Summer 23
+# -----------------------------------------------------------------------------
+
+
+# This is with all the data, including those that do not have an MPR and are 
+# in force from the moment of the first ratification.
+# Interesting: having a number threshold does not make THAT much of a difference
+# Could be interesting for appendix
+# note: boilerplate for 0 = NA, so we do not take those observations into account
+
+
+m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                 # Substantive Effects
+                 # H1: how many states in the number threshold?
+                 # threshold_1_number +threshold_2_time +
+                 # H2: How fancy the threshold?
+                 # Reference here is those with just numbers threshold
+                 threshold_1_number +
+                 threshold_3_qualified + #complex
+                 threshold_2_dummy + #time
+                 # H3: Boilerplates
+                 threshold_1_boilerplate_dummy + 
+                 # Controls
+                 countries.p.treaty +
+                 public_good +
+                 common_good +
+                 post_cold_war + 
+                 # US.in.treaty +
+                 any.p5.in.treaty + 
+                 c_by_t_sample +
+                 cooperation.depth +
+                 factor(chapter_title_consolidated),
+               data = dat.treaty)
+summary(m.cox)
+
+
+
+
+
+
+# This is just the subset of the data with those that have a nr threshold
+dat.treaty.w.nr.threshold <- subset(dat.treaty, subset = dat.treaty$threshold_1_dummy == TRUE)
+
+# The final model
+m.cox.w.threshold <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                 # Substantive Effects
+                 # H1: how many states in the number threshold?
+                 threshold_1_number +
+                 # H2: How fancy the threshold?
+                 # Reference here is those with just numbers threshold
+                 threshold_3_qualified + #complex
+                 threshold_2_dummy + #time
+                 # H3: Boilerplates
+                 threshold_1_boilerplate_dummy + 
+                 # Controls
+                 countries.p.treaty +
+                 public_good +
+                 common_good +
+                 post_cold_war + 
+                 US.in.treaty +
+                 any.p5.in.treaty + 
+                 c_by_t_sample +
+                 cooperation.depth +
+                 factor(chapter_title_consolidated),
+               data = dat.treaty.w.nr.threshold)
+summary(m.cox.w.threshold)
+
+
+
+
+
+
+
+# Reorder to include the goods first (August 24 version)
+# The final model
+m.cox.w.threshold <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                             # Substantive Effects
+                             public_good +
+                             common_good +
+                             # Controls
+                             # how many states in the number threshold?
+                             threshold_1_number +
+                             # How fancy the threshold?
+                             # Reference here is those with just numbers threshold
+                             threshold_3_qualified + #complex
+                             threshold_2_dummy + #time
+                             # Boilerplates
+                             threshold_1_boilerplate_dummy + 
+                             # Other Controls
+                             countries.p.treaty +
+                             post_cold_war + 
+                             US.in.treaty +
+                             any.p5.in.treaty + 
+                             c_by_t_sample +
+                             cooperation.depth +
+                             factor(chapter_title_consolidated),
+                           data = dat.treaty.w.nr.threshold)
+summary(m.cox.w.threshold)
+
+
+
+
+
+
+
+
+
+# check whether adding the lag controls away the delay for the treaties 
+# nope. No real influence
+# 
+# m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+#                  # Substantive Effects
+#                  # H1: how many states in the number threshold?
+#                  threshold_1_number +
+#                  # H2: How fancy the threshold?
+#                  # Reference here is those with just numbers threshold
+#                  threshold_3_qualified + #complex
+#                  threshold_2_time + #time
+#                  # H3: Boilerplates
+#                  threshold_1_boilerplate_dummy + 
+#                  # Controls
+#                  countries.p.treaty +
+#                  public_good +
+#                  common_good +
+#                  post_cold_war + 
+#                  # US.in.treaty +
+#                  any.p5.in.treaty + 
+#                  c_by_t_sample +
+#                  cooperation.deep +
+#                  factor(chapter_title_consolidated),
+#                data = subset(dat.treaty.w.nr.threshold, 
+#                              subset = dat.treaty.w.nr.threshold$threshold_2_dummy == TRUE))
+# summary(m.cox)
+# 
+# 
+# 
+
+
+
+
+
+
+
+
+# -- Making a Figure from Changes in Effects -----------------------------------
+
+# Calculates the change in effects.
+# How much is the risk of ratification different from a higher covariate value than from a lower?
+# Default is dummy, hence: 
+# How much is the risk of ratification different from a covar value = 1 than from a covar value = 0?
+calc.effect.change <- function(summary.m, low.val, high.val){
+  coefs <- summary.m$coefficients[,1]
+  ses <- summary.m$coefficients[,3]
+  # from Box-Steffensmeier/Jones (2004) p.60
+  hr.change <- (exp(coefs*high.val) - exp(coefs*low.val))/exp(coefs*low.val)
+  # ci.upper <- (exp((coefs+1.645*ses)*high.val) - exp((coefs+1.645*ses)*low.val))/exp((coefs+1.645*ses)*low.val)
+  # ci.lower <- (exp((coefs-1.645*ses)*high.val) - exp((coefs-1.645*ses)*low.val))/exp((coefs-1.645*ses)*low.val)
+  ci.upper <- (exp((coefs+1.96*ses)*high.val) - exp((coefs+1.96*ses)*low.val))/exp((coefs+1.96*ses)*low.val)
+  ci.lower <- (exp((coefs-1.96*ses)*high.val) - exp((coefs-1.96*ses)*low.val))/exp((coefs-1.96*ses)*low.val)
+  return(data.frame(hr.change, ci.upper, ci.lower)*100)  
+}
+
+# To plot effects that are significant in different colours
+effect.plotter <- function(dat, i, col = col){
+  # if the 0 is in the confidence interval, make colour transparent
+  if (dat$ci.lower[i] * dat$ci.upper[i] < 0){
+    col <- adjustcolor(col, alpha.f = 0.4)
+  }
+  points(dat$hr.change[i],i, col = col, pch = 16)
+  lines(c(dat$ci.lower[i], dat$ci.upper[i]), 
+        c(i,i), col = col)
+}
+
+
+
+# Calculate the effects on the basis of these covariates from the model
+# low.vals <- c(quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.25), 
+#               0, FALSE, FALSE,
+#               quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.25), 
+#               rep(0, 7),
+#               rep(0, length(m.cox.w.threshold$coefficients)-12))
+# 
+# 
+# high.vals <- c(quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.75), 
+#               1, TRUE, TRUE,
+#               quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.75), 
+#               rep(1, 7), 
+#               rep(1, length(m.cox.w.threshold$coefficients)-12))
+
+
+# New order August 24
+low.vals <- c(0,0,quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.25), 
+              0, FALSE, FALSE,
+              quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.25), 
+              rep(0, 5),
+              rep(0, length(m.cox.w.threshold$coefficients)-12))
+
+
+high.vals <- c(1,1,quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.75), 
+               1, TRUE, TRUE,
+               quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.75), 
+               rep(1, 5), 
+               rep(1, length(m.cox.w.threshold$coefficients)-12))
+
+
+
+dat.effects <- calc.effect.change(summary(m.cox.w.threshold), low.vals, high.vals)
+dat.effects.wo.c <- dat.effects[1:12,]
+# reverse the order for plotting
+dat.effects.wo.c<- dat.effects.wo.c[seq(dim(dat.effects.wo.c)[1],1),]
+
+
+pdf('figures/reaching_MPR_new_15_reorder.pdf')
+par(mfrow = c(1,1), mar = c(5,10,1,1))
+# Plot Results
+plot(1,1,type='n', bty = 'n', ylim =c(0.5,dim(dat.effects.wo.c)[1]+.5), 
+     xlim = c(-100, max(dat.effects.wo.c$ci.upper)), 
+     xlab = 'Change in Risk of Satisfying the MPR (in %)', ylab = '',
+     yaxt='n')
+axis(2, at = seq(1,dim(dat.effects.wo.c)[1]), las = 1,
+     # labels = c("Cooperation Depth","M&S 2016",
+     #            "Any P5 in Treaty", "US in Treaty", 'Post Cold War', 
+     #            'Common Good',
+     #            'Public Good',
+     #            'Nr. of Sign. Countries',
+     #            'Boilerplate MPR',
+     #            "Time MPR", 
+     #            "Qualified MPR",
+     #            # "Nr. & EIF Time MPR",
+     #            # "MPR Threshold (Share)",
+     #            "MPR Threshold (Nr.)"))
+     labels = c("Cooperation Depth","M&S 2016",
+                "Any P5 in Treaty", "US in Treaty", 'Post Cold War', 
+                'Nr. of Sign. Countries',
+                'Boilerplate MPR',
+                "Time MPR", 
+                "Qualified MPR",
+                # "Nr. & EIF Time MPR",
+                # "MPR Threshold (Share)",
+                "MPR Threshold (Nr.)",
+                'Common Good',
+                'Public Good'))
+abline(v=0, lty = 2, col = "grey60")
+for (i in seq(1, dim(dat.effects.wo.c)[1])){
+  effect.plotter(dat.effects.wo.c, i, col = cardiffblue)
+}
+dev.off()
+
+
+
+# summary(m.cox.w.threshold)
+# dat.treaty.w.nr.threshold$c_by_t_sample
+
+
+
+
+
+
+# -- Write Regression Table ----------------------------------------------------
+
+# Add some more substantive vars
+m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                             # Substantive Effects
+                             public_good +
+                             common_good +
+                             # Controls
+                             # how many states in the number threshold?
+                             threshold_1_number +
+                             # How fancy the threshold?
+                             # Reference here is those with just numbers threshold
+                             threshold_3_qualified + #complex
+                             threshold_2_dummy + #time
+                             # Boilerplates
+                             threshold_1_boilerplate_dummy + 
+                             # Other Controls
+                             countries.p.treaty +
+                             post_cold_war + 
+                             US.in.treaty +
+                             any.p5.in.treaty + 
+                             c_by_t_sample +
+                             cooperation.depth,
+                           data = dat.treaty.w.nr.threshold)
+
+summary(m.cox)
+
+
+
+
+
+
+
+
+
+
+m.cox.c <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                   # Substantive Effects
+                   public_good +
+                   common_good +
+                   # Controls
+                   # how many states in the number threshold?
+                   threshold_1_number +
+                   # How fancy the threshold?
+                   # Reference here is those with just numbers threshold
+                   threshold_3_qualified + #complex
+                   threshold_2_dummy + #time
+                   # Boilerplates
+                   threshold_1_boilerplate_dummy + 
+                   # Other Controls
+                   countries.p.treaty +
+                   post_cold_war + 
+                   US.in.treaty +
+                   any.p5.in.treaty + 
+                   c_by_t_sample +
+                   cooperation.depth +
+                 factor(chapter_title_consolidated),
+                 data = dat.treaty.w.nr.threshold)
+summary(m.cox.c)
+
+
+
+
+# Write it all out as stargazer tables.
+# OJO: Does not work 100% reliably... Misses cooperation deep var
+stargazer(m.cox, m.cox.c, 
+          keep = c(
+            "public_good","common_good",
+            "threshold_1_number", 
+                   "threshold_3_qualified","threshold_2_dummy", 
+            "threshold_1_boilerplate_dummy",
+            "countries.p.treaty",
+            "post_cold_war","US.in.treaty","any.P5.in.treaty", 
+            "c_by_t_sample", "cooperation.deep"),
+          covariate.labels = c('Public Good', 'Common Good', 
+                               'MPR Threshold (Nr.)', 
+                               'Qualified MPR', 'Time MPR',
+                               'Boilerplate MPR', 
+                               'Nr. of Signatory Countries',
+                               'Post Cold War', "US in Treaty", "Any P5 in Treaty",
+                               "M\\&S 2016", 'Cooperation Depth'),
+          star.cutoffs = c(0.05, 0.01)
+)
+
+
+
+

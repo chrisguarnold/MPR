@@ -1,0 +1,27 @@
+{
+    "id": "5647C9F3",
+    "path": "~/Dropbox/ratification_thresholds/code/data_management.r",
+    "project_path": "data_management.r",
+    "type": "r_source",
+    "hash": "558143143",
+    "contents": "",
+    "dirty": false,
+    "created": 1717147448842.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "475,0",
+        "scrollLine": "456",
+        "docOutlineVisible": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1717172623,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1717172623429,
+    "read_only": false,
+    "read_only_alternatives": []
+}

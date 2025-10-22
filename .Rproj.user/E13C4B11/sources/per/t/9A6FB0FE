@@ -1,0 +1,27 @@
+{
+    "id": "9A6FB0FE",
+    "path": "~/Dropbox/ratification_thresholds/code/analyse_entry_into_force.r",
+    "project_path": "analyse_entry_into_force.r",
+    "type": "r_source",
+    "hash": "2503927786",
+    "contents": "",
+    "dirty": false,
+    "created": 1668518760882.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "339,0",
+        "scrollLine": "325",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1668520385,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1668520385926,
+    "read_only": false,
+    "read_only_alternatives": []
+}

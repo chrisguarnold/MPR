@@ -1,0 +1,445 @@
+# -----------------------------------------------------------------------------
+# When do treaties enter into force?
+# 
+# Chris Arnold, Cardiff University
+# March 22
+# -----------------------------------------------------------------------------
+
+
+
+# -- What drives entry to force? -----------------------------------------------
+
+# # This is just the threshold combos
+# m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+#                  # Reference here is those without threshold
+#                  dat.treaty$threshold_only_1_dummy +
+#                  dat.treaty$threshold_only_3_dummy +
+#                  dat.treaty$threshold_only_combo_1_and_2 + 
+#                  dat.treaty$threshold_only_combo_1_and_3 + 
+#                  dat.treaty$threshold_combo_all)
+# 
+# 
+# 
+# # Threshold Combos and Chapter controls
+# m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+#                  # Reference here is those without threshold
+#                  dat.treaty$threshold_only_1_dummy +
+#                  dat.treaty$threshold_only_3_dummy +
+#                  dat.treaty$threshold_only_combo_1_and_2 + 
+#                  dat.treaty$threshold_only_combo_1_and_3 + 
+#                  dat.treaty$threshold_combo_all + 
+#                  factor(dat.treaty$chapter_title_consolidated))
+# summary(m.cox)
+# 
+# # Add signing countries 
+# m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+#                  # Reference here is those without threshold
+#                  dat.treaty$threshold_only_1_dummy +
+#                  dat.treaty$threshold_only_3_dummy +
+#                  dat.treaty$threshold_only_combo_1_and_2 + 
+#                  dat.treaty$threshold_only_combo_1_and_3 + 
+#                  dat.treaty$threshold_combo_all + 
+#                  dat.treaty$US.in.treaty + 
+#                  dat.treaty$Russia.in.treaty + 
+#                  dat.treaty$UK.in.treaty + 
+#                  dat.treaty$China.in.treaty + 
+#                  dat.treaty$France.in.treaty)
+# summary(m.cox)
+# 
+# 
+# # Add signing countries and chapter controls
+# m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+#                  # Reference here is those without threshold
+#                  dat.treaty$threshold_only_1_dummy +
+#                  dat.treaty$threshold_only_3_dummy +
+#                  dat.treaty$threshold_only_combo_1_and_2 + 
+#                  dat.treaty$threshold_only_combo_1_and_3 + 
+#                  dat.treaty$threshold_combo_all + 
+#                  dat.treaty$US.in.treaty + 
+#                  dat.treaty$Russia.in.treaty + 
+#                  dat.treaty$UK.in.treaty + 
+#                  dat.treaty$China.in.treaty + 
+#                  dat.treaty$France.in.treaty + 
+#                  factor(dat.treaty$chapter_title_consolidated))
+# summary(m.cox)
+# 
+# # Add ratifying countries and chapter controls
+# m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+#                  # Reference here is those without threshold
+#                  dat.treaty$threshold_only_1_dummy +
+#                  dat.treaty$threshold_only_3_dummy +
+#                  dat.treaty$threshold_only_combo_1_and_2 + 
+#                  dat.treaty$threshold_only_combo_1_and_3 + 
+#                  dat.treaty$threshold_combo_all + 
+#                  dat.treaty$US.in.treaty + 
+#                  dat.treaty$Russia.in.treaty + 
+#                  dat.treaty$UK.in.treaty + 
+#                  dat.treaty$China.in.treaty + 
+#                  dat.treaty$France.in.treaty + 
+#                  factor(dat.treaty$chapter_title_consolidated))
+# summary(m.cox)
+
+# Add some more substantive vars
+m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                 countries.p.treaty +
+                 threshold_1_boilerplate_dummy + 
+                 public_good +
+                 common_good +
+                 post_cold_war + 
+                 US.in.treaty + 
+                 any.p5.in.treaty + 
+                 threshold_1_share +
+                 threshold_1_number +
+                 # Reference here is those without threshold
+                 threshold_only_1_dummy +
+                 threshold_only_3_dummy +
+                 threshold_only_combo_1_and_2 + 
+                 threshold_only_combo_1_and_3 + 
+                 threshold_combo_all + 
+                 c_by_t_sample +
+                 factor(chapter_title_consolidated), 
+               data = dat.treaty)
+summary(m.cox)
+
+dat.treaty.w.nr.threshold <- subset(dat.treaty, subset = dat.treaty$threshold_1_dummy == TRUE)
+
+# Add some more substantive vars
+m.cox.w.threshold <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                 countries.p.treaty +
+                 threshold_1_boilerplate_dummy + 
+                 public_good +
+                 common_good +
+                 post_cold_war + 
+                 US.in.treaty + 
+                 any.p5.in.treaty + 
+                   threshold_1_share +
+                   threshold_1_number +
+                 threshold_only_1_dummy +
+                 # threshold_only_3_dummy +
+                   # Reference here
+                 # threshold_only_combo_1_and_2 + 
+                 threshold_only_combo_1_and_3 + 
+                 threshold_combo_all + 
+                 c_by_t_sample +
+                 factor(chapter_title_consolidated),
+               data = dat.treaty.w.nr.threshold)
+summary(m.cox.w.threshold)
+
+
+
+
+# TODO Adapt here
+# -- Making a Figure from Changes in Effects -----------------------------------
+
+# Calculates the change in effects.
+# How much is the risk of ratification different from a higher covariate value than from a lower?
+# Default is dummy, hence: 
+# How much is the risk of ratification different from a covar value = 1 than from a covar value = 0?
+calc.effect.change <- function(summary.m, low.val, high.val){
+  coefs <- summary.m$coefficients[,1]
+  ses <- summary.m$coefficients[,3]
+  # from Box-Steffensmeier/Jones (2004) p.60
+  hr.change <- (exp(coefs*high.val) - exp(coefs*low.val))/exp(coefs*low.val)
+  ci.upper <- (exp((coefs+1.645*ses)*high.val) - exp((coefs+1.645*ses)*low.val))/exp((coefs+1.645*ses)*low.val)
+  ci.lower <- (exp((coefs-1.645*ses)*high.val) - exp((coefs-1.645*ses)*low.val))/exp((coefs-1.645*ses)*low.val)
+  # ci.upper <- (exp((coefs+1.96*ses)*high.val) - exp((coefs+1.96*ses)*low.val))/exp((coefs+1.96*ses)*low.val)
+  # ci.lower <- (exp((coefs-1.96*ses)*high.val) - exp((coefs-1.96*ses)*low.val))/exp((coefs-1.96*ses)*low.val)
+  return(data.frame(hr.change, ci.upper, ci.lower)*100)  
+}
+
+# To plot effects that are significant in different colours
+effect.plotter <- function(dat, i, col = col){
+  # if the 0 is in the confidence interval, make colour transparent
+  if (dat$ci.lower[i] * dat$ci.upper[i] < 0){
+    col <- adjustcolor(col, alpha.f = 0.4)
+  }
+  points(dat$hr.change[i],i, col = col, pch = 16)
+  lines(c(dat$ci.lower[i], dat$ci.upper[i]), 
+        c(i,i), col = col)
+}
+
+
+# Calculate the effects on the basis of these covariates 
+low.vals <- c(quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.25), 
+              rep(0, 6), 
+              round(quantile(dat.treaty.w.nr.threshold$threshold_1_share, 0.25), 2), 
+              quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.25), 
+              rep(0, length(m.cox.w.threshold$coefficients)-9))
+
+
+high.vals <- c(quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.75), 
+              rep(1, 6), 
+              round(quantile(dat.treaty.w.nr.threshold$threshold_1_share, 0.75),2), 
+              round(quantile(dat.treaty.w.nr.threshold$threshold_1_number, 0.75),2), 
+              rep(1, length(m.cox.w.threshold$coefficients)-9))
+
+
+dat.effects <- calc.effect.change(summary(m.cox.w.threshold), low.vals, high.vals)
+dat.effects.wo.c <- dat.effects[1:13,]
+# reverse the order for plotting
+dat.effects.wo.c<- dat.effects.wo.c[seq(dim(dat.effects.wo.c)[1],1),]
+
+
+pdf('figures/entry_into_force.pdf')
+par(mfrow = c(1,1), mar = c(5,10,1,1))
+# Plot Results
+plot(1,1,type='n', bty = 'n', ylim =c(0.5,dim(dat.effects.wo.c)[1]+.5), 
+     xlim = c(-100, max(dat.effects.wo.c$ci.upper)), 
+     xlab = 'Change in Risk of Ratification (in %)', ylab = '',
+     yaxt='n')
+axis(2, at = seq(1,dim(dat.effects.wo.c)[1]), las = 1,
+     labels = c("M&S 2016","All Three MPR", 
+                "Nr. & Qualified MPR",
+                "Nr. MPR", 
+                "MPR Threshold (Nr)", "MPR Threshold (Share)",
+                "Any P5 in Treaty", "US in Treaty", 'Post Cold War', ' Common Good',
+                'Public Good', 'Boilerplate Nr. MPR', 'Nr. of Countries'))
+abline(v=0, lty = 2, col = "grey60")
+for (i in seq(1, dim(dat.effects.wo.c)[1])){
+  effect.plotter(dat.effects.wo.c, i, col = cardiffblue)
+}
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# do the figure again now for the subsample dat.treaty.share
+
+
+#  NB Does not converge.
+
+# 
+# # Add some more substantive vars
+# m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~
+#                  countries.p.treaty +
+#                  threshold_1_share +
+#                  threshold_1_number +
+#                  threshold_1_boilerplate_dummy +
+#                  public_good +
+#                  common_good +
+#                  post_cold_war +
+#                  US.in.treaty +
+#                  UK.in.treaty +
+#                  France.in.treaty +
+#                  China.in.treaty +
+#                  Russia.in.treaty +
+#                  # Reference here is those without threshold
+#                  threshold_only_1_dummy +
+#                  # threshold_only_3_dummy +
+#                  threshold_only_combo_1_and_2 +
+#                  threshold_only_combo_1_and_3 +
+#                  # threshold_combo_all +
+#                  c_by_t_sample +
+#                  factor(chapter_title_consolidated),
+#                data = dat.treaty.share)
+# summary(m.cox)
+# 
+# 
+# # Calculate the effects
+# low.vals <- c(quantile(dat.treaty.share$countries.p.treaty, 0.25),
+#               quantile(dat.treaty.share$threshold_1_share, 0.25),
+#               quantile(dat.treaty.share$threshold_1_number, 0.25),
+#               rep(0, length(m.cox$coefficients)-3))
+# 
+# 
+# high.vals <- c(quantile(dat.treaty.share$countries.p.treaty, 0.75),
+#               quantile(dat.treaty.share$threshold_1_share, 0.75),
+#               quantile(dat.treaty.share$threshold_1_number, 0.75),
+#               rep(1, length(m.cox$coefficients)-3))
+# 
+# 
+# 
+# 
+# dat.effects <- calc.effect.change(summary(m.cox), low.vals, high.vals)
+# dat.effects.wo.c <- dat.effects[1:15,]
+# # reverse the order for plotting
+# dat.effects.wo.c<- dat.effects.wo.c[seq(dim(dat.effects.wo.c)[1],1),]
+# 
+# 
+# pdf('figures/entry_into_force_share.pdf')
+# par(mfrow = c(1,1), mar = c(5,8.5,1,1))
+# # Plot Results
+# plot(1,1,type='n', bty = 'n', ylim =c(0.5,dim(dat.effects.wo.c)[1]+.5),
+#      xlim = c(-100, max(dat.effects.wo.c$ci.upper)),
+#      xlab = 'Change in Risk of Ratification', ylab = '',
+#      yaxt='n')
+# axis(2, at = seq(1,dim(dat.effects.wo.c)[1]), las = 1,
+#      labels = c("M&S 2016","Nr. & Complex MPR", "Nr. & Lag MPR", "Nr. MPR",
+#                 'Russia in Treaty', 'China in Treaty', "France in Treaty",
+#                 "UK in Treaty", "US in Treaty", 'Post Cold War','Common Good',
+#                 'Public Good', 'Boilerplate Nr. MPR', "Threshold (Nr.)",
+#                 "Threshold (Share)",'Nr. of Countries'))
+# abline(v=0, lty = 2, col = "grey60")
+# for (i in seq(1, dim(dat.effects.wo.c)[1])){
+#   effect.plotter(dat.effects.wo.c, i, col = cardiffblue)
+# }
+# dev.off()
+
+# TODO: Double check whether things go right
+
+
+
+
+
+
+
+
+
+# -- Write Regression Table ----------------------------------------------------
+
+# Add some more substantive vars
+m.cox <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+                 dat.treaty$countries.p.treaty +
+                 dat.treaty$threshold_1_boilerplate_dummy + 
+                 dat.treaty$common_good +     
+                 dat.treaty$post_cold_war + 
+                 dat.treaty$US.in.treaty + 
+                 dat.treaty$any.p5.in.treaty + 
+                 # Reference here is those without threshold
+                 dat.treaty$threshold_only_1_dummy +
+                 dat.treaty$threshold_only_3_dummy +
+                 dat.treaty$threshold_only_combo_1_and_2 + 
+                 dat.treaty$threshold_only_combo_1_and_3 + 
+                 dat.treaty$threshold_combo_all + 
+                 dat.treaty$c_by_t_sample)
+summary(m.cox)
+
+
+
+
+m.cox.c <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+                 dat.treaty$countries.p.treaty +
+                 dat.treaty$threshold_1_boilerplate_dummy + 
+                 dat.treaty$public_good +     
+                 dat.treaty$common_good +     
+                 dat.treaty$post_cold_war + 
+                 dat.treaty$US.in.treaty + 
+                 dat.treaty$any.p5.in.treaty +
+                 # Reference here is those without threshold
+                 dat.treaty$threshold_only_1_dummy +
+                 dat.treaty$threshold_only_3_dummy +
+                 dat.treaty$threshold_only_combo_1_and_2 + 
+                 dat.treaty$threshold_only_combo_1_and_3 + 
+                 dat.treaty$threshold_combo_all + 
+                 dat.treaty$c_by_t_sample +
+                 factor(dat.treaty$chapter_title_consolidated))
+summary(m.cox.c)
+
+
+
+
+# Write it all out as stargazer tables.
+
+stargazer(m.cox, m.cox.c, 
+          keep = c("countries.p.treaty","threshold_1_boilerplate_dummy","public_good",
+                   "common_good",
+                   "post_cold_war","US.in.treaty","any.P5.in.treaty","threshold_only_1_dummy",
+                   "threshold_only_3_dummy","threshold_only_combo_1_and_2",
+                   "threshold_only_combo_1_and_3","threshold_combo_all","c_by_t_sample"),
+          covariate.labels = c('Nr. of Countries', 'Boilerplate Nr. MPR', 
+                               'Public Good', 'Common Good', 'Post Cold War', 
+                               "US in Treaty", "Any P5 in Treaty", "Number MPR", 
+                               "Qualified MPR", "Number \\& Lag MPR", 
+                               "Number \\& Qualified MPR", "All Three MPR",
+                               "M\\&S 2016")
+)
+
+
+
+
+
+
+
+
+
+
+
+
+# -- Construction Site ---------------------------------------------------------
+
+
+
+m.cox.c <- coxph(Surv((dat.treaty$threshold_reached_date - dat.treaty$adoption_date), dat.treaty$entry_force_binary) ~ 
+                   dat.treaty$countries.p.treaty +
+                   dat.treaty$threshold_1_share +
+                   dat.treaty$threshold_1_boilerplate_dummy + 
+                   dat.treaty$public_good +     
+                   dat.treaty$common_good +     
+                   dat.treaty$post_cold_war + 
+                   dat.treaty$US.in.treaty + 
+                   dat.treaty$any.p5.in.treaty +
+                   # Reference here is those without threshold
+                   dat.treaty$threshold_only_1_dummy +
+                   dat.treaty$threshold_only_3_dummy +
+                   dat.treaty$threshold_only_combo_1_and_2 + 
+                   dat.treaty$threshold_only_combo_1_and_3 + 
+                   dat.treaty$threshold_combo_all + 
+                   dat.treaty$c_by_t_sample +
+                   factor(dat.treaty$chapter_title_consolidated))
+summary(m.cox.c)
+
+
+
+
+
+# 
+# 
+# 
+# 
+# 
+# # -- Try this out to add the share --------------------------------------------------------------
+# Add some more substantive vars
+m.cox <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                 countries.p.treaty +
+                 threshold_1_boilerplate_dummy + 
+                 public_good +
+                 common_good +
+                 post_cold_war + 
+                 US.in.treaty + 
+                 any.p5.in.treaty + 
+                 threshold_1_share +
+                 threshold_1_number +
+                 # Reference here is those without threshold
+                 threshold_only_1_dummy +
+                 threshold_only_3_dummy +
+                 threshold_only_combo_1_and_2 + 
+                 threshold_only_combo_1_and_3 + 
+                 threshold_combo_all + 
+                 c_by_t_sample +
+                 factor(chapter_title_consolidated), 
+               data = dat.treaty)
+summary(m.cox)
+
+dat.treaty.w.nr.threshold <- subset(dat.treaty, subset = dat.treaty$threshold_1_dummy == TRUE)
+
+# Add some more substantive vars
+m.cox.w.threshold <- coxph(Surv((threshold_reached_date - adoption_date), entry_force_binary) ~ 
+                             countries.p.treaty +
+                             threshold_1_boilerplate_dummy + 
+                             public_good +
+                             common_good +
+                             post_cold_war + 
+                             US.in.treaty + 
+                             any.p5.in.treaty + 
+                             threshold_1_share +
+                             threshold_1_number +
+                             threshold_only_1_dummy +
+                             # threshold_only_3_dummy +
+                             # Reference here
+                             # threshold_only_combo_1_and_2 + 
+                             threshold_only_combo_1_and_3 + 
+                             threshold_combo_all + 
+                             c_by_t_sample +
+                             factor(chapter_title_consolidated),
+                           data = dat.treaty.w.nr.threshold)
+summary(m.cox.w.threshold)

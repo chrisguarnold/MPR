@@ -1,0 +1,28 @@
+{
+    "id": "835984E5",
+    "path": "~/Dropbox/ratification_thresholds/code/mpr_master.r",
+    "project_path": "mpr_master.r",
+    "type": "r_source",
+    "hash": "3530197950",
+    "contents": "",
+    "dirty": false,
+    "created": 1651133973405.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "wh020jzwil7t3",
+        "Source": "Source",
+        "cursorPosition": "76,0",
+        "scrollLine": "31",
+        "docOutlineVisible": "0",
+        "rmdVisualCollapsedChunks": ""
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1659712739,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1659712739,
+    "read_only": false,
+    "read_only_alternatives": []
+}

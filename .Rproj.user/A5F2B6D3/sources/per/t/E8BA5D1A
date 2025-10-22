@@ -1,0 +1,26 @@
+{
+    "id": "E8BA5D1A",
+    "path": "~/Dropbox/ratification_thresholds/code/helpers/helpers_causal_effect.r",
+    "project_path": "helpers/helpers_causal_effect.r",
+    "type": "r_source",
+    "hash": "3201303150",
+    "contents": "",
+    "dirty": false,
+    "created": 1726681828969.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "womlgo6ggy58e",
+        "Source": "Source",
+        "cursorPosition": "161,27",
+        "scrollLine": "140"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1688741728,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1688741728,
+    "read_only": false,
+    "read_only_alternatives": []
+}

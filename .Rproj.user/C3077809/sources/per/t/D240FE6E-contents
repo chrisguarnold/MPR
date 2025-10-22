@@ -1,0 +1,428 @@
+#===============================================================================
+# What determines the adoption of boilerplates?
+# Project: Ratification Thresholds
+# Chris Arnold, Cardiff University, March 2022
+#===============================================================================
+
+
+
+# -- Boiler Plate Agreements ---------------------------------------------------
+# Finding: Boiler plates matter
+dat.temp <- subset(dat.treaty, dat.treaty$threshold_combo_all)
+
+# Compare the percentage of the number thresholds: 
+dat.treaty.w.nr.threshold <- subset(dat.treaty, subset = dat.treaty$threshold_1_dummy == TRUE)
+
+# note: no C by t sample, because there is no important treaty without boilerplate
+# update: Include that c by t sample
+table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, 
+      dat.treaty.w.nr.threshold$c_by_t_sample)
+
+
+
+# 
+# # make tables to understand where there are no cases in the sample 
+# table(dat.treaty.w.threshold$threshold_combo_all, dat.treaty.w.threshold$c_by_t_sample)
+# table(dat.treaty.w.threshold$threshold_only_1_dummy, dat.treaty.w.threshold$entry_force_binary)
+# table(dat.treaty.w.threshold$threshold_only_3_dummy, dat.treaty.w.threshold$entry_force_binary)
+# table(dat.treaty.w.threshold$threshold_only_combo_1_and_2, dat.treaty.w.threshold$entry_force_binary)
+# table(dat.treaty.w.threshold$threshold_only_combo_1_and_3, dat.treaty.w.threshold$c_by_t_sample)
+# table(dat.treaty.w.threshold$threshold_combo_all, dat.treaty.w.threshold$entry_force_binary)
+# 
+
+# # Analyse occurrence of boilerplates in pivot tables
+# round(prop.table(table(
+#   pmax(dat.treaty.w.nr.threshold$common_good, dat.treaty.w.nr.threshold$public_good, na.rm = TRUE), 
+#   dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy
+#   ),
+#   1), 
+#   2)
+# 
+# table(
+#   pmax(dat.treaty.w.nr.threshold$common_good, dat.treaty.w.nr.threshold$public_good, na.rm = TRUE), 
+#   dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy
+# )
+# 
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$public_good),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$common_good),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$c_by_t_sample),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$post_cold_war),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$entry_force_binary),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$US.in.treaty),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$Russia.in.treaty),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$UK.in.treaty),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$China.in.treaty),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$France.in.treaty),1), 2)
+# round(prop.table(table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$any.p5.in.treaty),1), 2)
+# # table(dat.treaty.w.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.threshold$threshold_1_boilerplate_dummy)
+# # 
+# # # Chapter Dummies
+# # table(dat.treaty.w.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.threshold$chapter_d_commercial_arbitration)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Commodities)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_diplomatic_priviliges)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Disarmament)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_edu_and_culture)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Environment)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Health)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_human_rights)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_int_trade_and_development)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_law_of_the_sea)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_law_of_treaties)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_narcotics)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Navigation)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_obscene_publications)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_penal_matters)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_refugees)
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_Telecommunications)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_traffic_in_persons )
+# table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_transport_and_communications)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_UN_charter)
+# # table(dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy, dat.treaty.w.nr.threshold$chapter_d_women)
+
+
+# table(dat.treaty.w.nr.threshold$chapter_title_consolidated,
+#       dat.treaty.w.nr.threshold$threshold_1_boilerplate_dummy)
+
+  
+# Analysing ----------------  
+
+# -- Writing Results as a Stargazer Table ----
+
+
+m.threshold.glm <- glm(threshold_1_boilerplate_dummy ~ 
+                         cooperation.depth +  countries.p.treaty +
+                         public_good + common_good + entry_force_binary + 
+                         US.in.treaty +any.p5.in.treaty +post_cold_war + 
+                         c_by_t_sample +
+                         threshold_1_share  + 
+                         threshold_2_dummy + 
+                         threshold_3_qualified, 
+                       family ='binomial', data=dat.treaty.w.nr.threshold)
+
+
+summary(m.threshold.glm)
+
+
+
+# 
+# m.threshold.glm <- glm(threshold_1_boilerplate_dummy ~ 
+#                          countries.p.treaty +
+#                            public_good + common_good + entry_force_binary + 
+#                            US.in.treaty +any.p5.in.treaty +post_cold_war + 
+#                          threshold_1_share  + 
+#                            # Reference: threshold_only_1_dummy 
+#                            threshold_only_combo_1_and_2 +
+#                            threshold_only_combo_1_and_3 +
+#                             threshold_combo_all
+#                          , 
+#                          family ='binomial', data=dat.treaty.w.nr.threshold)
+# 
+# 
+# summary(m.threshold.glm)
+
+# control 
+m.threshold.c.glm <- glm(threshold_1_boilerplate_dummy ~ 
+                           cooperation.depth +  countries.p.treaty +
+                           public_good + common_good + entry_force_binary + 
+                           US.in.treaty +any.p5.in.treaty +post_cold_war + 
+                           c_by_t_sample +
+                           threshold_1_share  + 
+                           threshold_2_dummy + 
+                           threshold_3_qualified +
+                         # reference: chapter_d_transport_and_communications
+                         chapter_d_Telecommunications + 
+                         chapter_d_penal_matters +
+                         chapter_d_Navigation +
+                         chapter_d_Commodities +
+                         chapter_d_diplomatic_priviliges +
+                         chapter_d_Disarmament +
+                         chapter_d_edu_and_culture +
+                         chapter_d_Environment +
+                         chapter_d_Health +
+                         chapter_d_human_rights +
+                         chapter_d_int_trade_and_development
+                       , 
+                       family ='binomial', data=dat.treaty.w.nr.threshold)
+
+summary(m.threshold.c.glm)
+
+
+
+m.threshold.c.glm <- glm(threshold_1_boilerplate_dummy ~ 
+                           cooperation.deep +  countries.p.treaty +
+                           public_good + common_good + entry_force_binary + 
+                           US.in.treaty +any.p5.in.treaty +post_cold_war + 
+                           c_by_t_sample +
+                           threshold_1_share  + 
+                           threshold_2_dummy + 
+                           threshold_3_qualified +
+                           # reference: chapter_d_transport_and_communications
+                           chapter_d_Telecommunications + 
+                           chapter_d_penal_matters +
+                           chapter_d_Navigation +
+                           chapter_d_Commodities +
+                           chapter_d_diplomatic_priviliges +
+                           chapter_d_Disarmament +
+                           chapter_d_edu_and_culture +
+                           chapter_d_Environment +
+                           chapter_d_Health +
+                           chapter_d_human_rights +
+                           chapter_d_int_trade_and_development
+                         , 
+                         family ='binomial', data=dat.treaty.w.nr.threshold)
+
+
+summary(m.threshold.c.glm)
+
+
+stargazer(m.threshold.glm, m.threshold.c.glm, 
+          keep = c("cooperation.deep","countries.p.treaty", 
+                   "public_good", "common_good", 
+                   "entry_force_binary", "US.in.treaty", "any.p5.in.treaty", 
+                   "post_cold_war", "threshold_1_share", "threshold_2_dummy", 
+                     "threshold_3_qualified" ),
+          covariate.labels = c('Cooperation Depth', 'Nr. of Sign. Countries', 
+                               'Public Good', 'Common Good',  
+                               "Entry Force", "US in Treaty", 'Any P5 in Treaty', 
+                               'Post Cold War', 'Numerical MPR (Share)',
+                               'EIF MPR', 'Qualified MPR'),
+          star.cutoffs = c(0.05, 0.01)
+)
+
+
+dim(dat.treaty.w.nr.threshold)
+
+
+
+
+
+
+
+
+
+
+
+
+# 
+# 
+# m.threshold <- zelig(threshold_1_boilerplate_dummy ~ countries.p.treaty +
+#                        public_good + common_good + 
+#                        entry_force_binary + 
+#                        US.in.treaty + any.p5.in.treaty +post_cold_war + 
+#                        threshold_1_share +
+#                        # Reference: threshold_combo_all
+#                        threshold_only_1_dummy + 
+#                        threshold_only_combo_1_and_2 +
+#                        threshold_only_combo_1_and_3
+#                      , 
+#                      model ='logit', data=dat.treaty.w.nr.threshold)
+# summary(m.threshold)
+# 
+# 
+# # control 
+# m.threshold.c <- zelig(threshold_1_boilerplate_dummy ~ countries.p.treaty +
+#                          public_good + common_good + entry_force_binary + 
+#                          US.in.treaty + any.p5.in.treaty +post_cold_war + 
+#                          threshold_1_share +
+#                          # Reference: threshold_combo_all
+#                          threshold_only_1_dummy + 
+#                          threshold_only_combo_1_and_2 +
+#                          threshold_only_combo_1_and_3 +
+#                          # reference: chapter_d_transport_and_communications
+#                          chapter_d_Telecommunications + 
+#                          chapter_d_penal_matters +
+#                          chapter_d_Navigation +
+#                          chapter_d_Commodities +
+#                          chapter_d_diplomatic_priviliges +
+#                          chapter_d_Disarmament +
+#                          chapter_d_edu_and_culture +
+#                          chapter_d_Environment +
+#                          chapter_d_Health +
+#                          chapter_d_human_rights +
+#                          chapter_d_int_trade_and_development
+#                        , 
+#                        model ='logit', data=dat.treaty.w.nr.threshold)
+# 
+# summary(m.threshold.c)
+# almost weak: less with combo all 
+# weak: less France
+# more with combo complex, less entry into force, more nr of countries
+
+
+
+
+
+
+
+# # Visualise in Figure 
+# # countries.p.treaty                   
+# variable.high <- setx(m.threshold.c, countries.p.treaty = quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.75))
+# variable.low <- setx(m.threshold.c, countries.p.treaty = quantile(dat.treaty.w.nr.threshold$countries.p.treaty, 0.25))
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.countries.p.treaty <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.countries.p.treaty)
+# 
+# # public_good                         
+# variable.high <- setx(m.threshold.c, public_good = 1)
+# variable.low <- setx(m.threshold.c, public_good = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.public_good <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.public_good)
+# # common_good                         
+# variable.high <- setx(m.threshold.c, common_good = 1)
+# variable.low <- setx(m.threshold.c, common_good = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.common_good <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# 
+# # entry_force_binary                  
+# variable.high <- setx(m.threshold.c, entry_force_binary = 1)
+# variable.low <- setx(m.threshold.c, entry_force_binary = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.entry_force_binary <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.entry_force_binary)
+# 
+# # US.in.treaty                         
+# variable.high <- setx(m.threshold.c, US.in.treaty = 1)
+# variable.low <- setx(m.threshold.c, US.in.treaty = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.US.in.treaty <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# 
+# # any.p5.in.treaty                         
+# variable.high <- setx(m.threshold.c, any.p5.in.treaty = 1)
+# variable.low <- setx(m.threshold.c, any.p5.in.treaty = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.any.p5.in.treaty <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# 
+# # post_cold_war                        
+# variable.high <- setx(m.threshold.c, post_cold_war = 1)
+# variable.low <- setx(m.threshold.c, post_cold_war = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.post_cold_war <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# 
+# # threshold_1_share                        
+# variable.high <- setx(m.threshold.c, threshold_1_share = quantile(dat.treaty.w.nr.threshold$threshold_1_share, 0.75))
+# variable.low <- setx(m.threshold.c, threshold_1_share = quantile(dat.treaty.w.nr.threshold$threshold_1_share, 0.25))
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.threshold_1_share <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.threshold_1_share)
+# 
+# # threshold_only_combo_1_and_2TRUE     
+# variable.high <- setx(m.threshold.c, threshold_only_combo_1_and_2 = 1)
+# variable.low <- setx(m.threshold.c, threshold_only_combo_1_and_2 = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.threshold_only_combo_1_and_2 <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.threshold_only_combo_1_and_2)
+# # threshold_only_combo_1_and_3TRUE     
+# variable.high <- setx(m.threshold.c, threshold_only_combo_1_and_3 = 1)
+# variable.low <- setx(m.threshold.c, threshold_only_combo_1_and_3 = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.threshold_only_combo_1_and_3 <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.threshold_only_combo_1_and_3)
+# 
+# # threshold_only_1_dummy             
+# variable.high <- setx(m.threshold.c, threshold_only_1_dummy = 1)
+# variable.low <- setx(m.threshold.c, threshold_only_1_dummy = 0)
+# s.out <- sim(m.threshold.c, x = variable.high, x1 = variable.low)
+# fd.threshold_only_1_dummy <- s.out$sim.out$x$ev[[1]] - s.out$sim.out$x1$ev[[1]]
+# mean(fd.threshold_only_1_dummy)
+# 
+# 
+# # Plotting
+# # # Use Viridis Colours
+# # v.colors <- viridis_pal(option = 'plasma')(6)
+# 
+# effect.plotter <- function(dat, y.value, col = col){
+#   # if the 0 is in the confidence interval, make colour transparent
+#   if (quantile(dat, .05) * quantile(dat, .95) < 0){
+#     col <- adjustcolor(col, alpha.f = 0.4)
+#   }
+#   points(mean(dat),y.value,  col = col, pch = 16)
+#   lines(c(quantile(dat, .05), quantile(dat, .95)), 
+#         c(y.value, y.value),
+#         col = col)
+# }
+# 
+# 
+# pdf('figures/threshold_boilerplate.pdf')
+# par(mfrow = c(1,1), mar = c(5,8.5,1,1))
+# plot(1,1, type='n', bty = 'n', ylim =c(0.5,11.5), xlim = c(-.3, 1), 
+#      xlab = 'Expected Change in Probability', ylab = '',
+#      yaxt='n')
+# axis(2, at = seq(1,11), las = 1,
+#      labels = c("Nr. MPR", "Nr. & Qualified MPR", "Nr. & Lag MPR", "MPR (Share)",
+#                 "Any P5 in Treaty", "US in Treaty", "Entry Force", 'Post Cold War', 
+#                 'Common Good', 'Public Good', 'Nr. of Countries'))
+# 
+# abline(v=0, lty = 2, col = "grey60")
+# 
+# effect.plotter(fd.countries.p.treaty, 11, col = cardiffblue)
+# effect.plotter(fd.public_good, 10, col = cardiffblue)
+# effect.plotter(fd.common_good, 9, col = cardiffblue)
+# effect.plotter(fd.post_cold_war, 8, col = cardiffblue)
+# effect.plotter(fd.entry_force_binary, 7, col = cardiffblue)
+# effect.plotter(fd.US.in.treaty, 6, col = cardiffblue)
+# effect.plotter(fd.any.p5.in.treaty, 5, col = cardiffblue)
+# effect.plotter(fd.threshold_1_share, 4, col = cardiffblue)
+# effect.plotter(fd.threshold_only_combo_1_and_2, 3, col = cardiffblue)
+# effect.plotter(fd.threshold_only_combo_1_and_3, 2, col = cardiffblue)
+# effect.plotter(fd.threshold_only_1_dummy, 1, col = cardiffblue)
+# 
+# dev.off()
+# 
+# dat.treaty.w.nr.threshold$threshold_1_number
+
+
+
+
+# -- Trying out stuff ----------------------------------------------------------
+# 
+# 
+# dat.treaty$public_or_common_good <- dat.treaty$public_good + dat.treaty$common_good
+# m.threshold.c.glm <- glm(threshold_1_boilerplate_dummy ~ countries.p.treaty +
+#                            public_good + common_good +
+#                            # public_or_common_good +
+#                            entry_force_binary + 
+#                            US.in.treaty + any.p5.in.treaty +post_cold_war + 
+#                            # Reference: threshold_only_1_dummy 
+#                            threshold_only_combo_1_and_2 +
+#                            threshold_only_combo_1_and_3 +
+#                            threshold_only_1_dummy +
+#                            # threshold_1_number +
+#                            threshold_1_share +
+#                            # reference: chapter_d_transport_and_communications
+#                            chapter_d_Telecommunications + 
+#                            chapter_d_penal_matters +
+#                            chapter_d_Navigation +
+#                            chapter_d_Commodities +
+#                            chapter_d_diplomatic_priviliges +
+#                            chapter_d_Disarmament +
+#                            chapter_d_edu_and_culture +
+#                            chapter_d_Environment +
+#                            chapter_d_Health +
+#                            chapter_d_human_rights +
+#                            chapter_d_int_trade_and_development
+#                          , 
+#                          family ='binomial', 
+#                          data= subset(dat.treaty, 
+#                                       (dat.treaty$threshold_1_dummy==TRUE)))
+#                          # data= subset(dat.treaty, 
+#                          #   (dat.treaty$threshold_1_dummy==TRUE & 
+#                          #    dat.treaty$threshold_1_share <= 1)))
+# 
+# 
+# summary(m.threshold.c.glm)
+# 
+# table(dat.treaty.w.nr.threshold$threshold_only_1_dummy)
+# 
+# plot(dat.treaty.w.nr.threshold$threshold_1_number, 
+#      dat.treaty.w.nr.threshold$threshold_1_share)
+# 
+# # dat.treaty.w.nr.threshold$threshold_1_share
+# 
+# 
+
+
+
+
+
+
