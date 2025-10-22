@@ -14,7 +14,7 @@ This Dataverse deposit contains all materials required to reproduce the analyses
 ## Repository Contents
 
 ### 1. Data
-* `dat_mtdsg_18april2019.dta`: Our main data that contains all the coding work of thresholds. For variables, see codebook codebook_mtdsg_18april2019.docx.
+* `dat_mtdsg_18april2019.dta`: Our main data that contains all the coding work of thresholds. For variables, see codebook codebook_mtdsg_18april2019.docx. Note: this does not live on github. Check dataverse or get in touch with Chris. 
 * `dat_public_common_annotation.csv`: Our annotation of public and common goods
 * `dat_mprdsm.rdata`: The LLM-annotated dispute settlement mechanisms
 * `dat_treaty_corpus.rdata`: The corpus of full treaty texts in case you want to run the LLM annotation of the dispute settlement mechanisms on your own.
